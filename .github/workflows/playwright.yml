@@ -10,7 +10,7 @@ on:
         description: Target environment
         type: choice
         options: [dev, uat]
-        default: uat
+        default: dev
 jobs:
   test:
     timeout-minutes: 60
@@ -24,12 +24,12 @@ jobs:
       - run: npx playwright install --with-deps chromium webkit
       - run: npx playwright test
         env:
-          ENV: ${{ inputs.environment || 'uat' }}
+          ENV: ${{ inputs.environment || 'dev' }}
           # Add secrets used by tests here, e.g.
           # UAT_USER_PASSWORD: ${{ secrets.UAT_USER_PASSWORD }}
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report-${{ inputs.environment || 'uat' }}
+          name: playwright-report-${{ inputs.environment || 'dev' }}
           path: playwright-report/
           retention-days: 30

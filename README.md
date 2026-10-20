@@ -26,7 +26,7 @@ cp .env.example .env   # fill in secrets (credentials)
 ## Environments
 
 URLs and per-env settings live in `config/environments.js` (committed). Pick one with `ENV`
-(default `uat`): `npm run test:dev` or `npx cross-env ENV=dev playwright test`.
+(default `dev`): `npm run test:uat` or `npx cross-env ENV=uat playwright test`.
 Add a new env by adding a key to that file.
 
 Secrets (credentials, tokens) go in `.env` (git-ignored; copy from `.env.example`).
@@ -34,7 +34,7 @@ Prefix keys with the env name when values differ per env, e.g. `DEV_USER_PASSWOR
 
 Combine with other flags: `npm run test:dev -- --project=webkit --headed`
 
-In CI, push/PR runs use `uat`; pick another via **Actions → Playwright Tests → Run workflow**.
+In CI, push/PR runs use `dev`; pick another via **Actions → Playwright Tests → Run workflow**.
 Add any secrets the tests need as repo secrets and map them in the workflow's `env:` block.
 
 ## Structure

@@ -20,7 +20,7 @@ const environments = {
   },
 };
 
-const ENV_NAME = process.env.ENV || 'uat';
+const ENV_NAME = process.env.ENV || 'dev';
 
 if (!environments[ENV_NAME]) {
   throw new Error(`Unknown environment: "${ENV_NAME}". Valid options: ${Object.keys(environments).join(', ')}`);
