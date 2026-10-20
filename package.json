@@ -1,0 +1,28 @@
+{
+  "name": "dw-postmax-automate-testing",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "playwright test",
+    "test:dev": "cross-env ENV=dev playwright test",
+    "test:uat": "cross-env ENV=uat playwright test",
+    "test:local": "cross-env ENV=local playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "report": "playwright show-report",
+    "codegen": "playwright codegen",
+    "test:chromium": "playwright test --project=chromium",
+    "test:webkit": "playwright test --project=webkit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "PostMax E2E automation tests with Playwright",
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.5",
+    "cross-env": "^10.1.0",
+    "dotenv": "^18.0.8"
+  },
+  "private": true
+}
