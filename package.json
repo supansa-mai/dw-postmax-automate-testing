@@ -6,6 +6,7 @@
     "test:dev": "cross-env ENV=dev playwright test",
     "test:uat": "cross-env ENV=uat playwright test",
     "test:local": "cross-env ENV=local playwright test",
+    "test:api": "playwright test --project=api",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug",

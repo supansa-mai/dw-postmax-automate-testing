@@ -16,6 +16,7 @@ cp .env.example .env   # fill in secrets (credentials)
 | --- | --- |
 | `npm test` | Run all tests (headless) |
 | `npm run test:dev` / `test:uat` / `test:local` | Run against a specific environment |
+| `npm run test:api` | Run API tests only (no browser) |
 | `npm run test:chromium` / `test:webkit` | Run on a single browser |
 | `npm run test:headed` | Run with browser visible |
 | `npm run test:ui` | Playwright UI mode |
@@ -37,13 +38,21 @@ Combine with other flags: `npm run test:dev -- --project=webkit --headed`
 In CI, push/PR runs use `dev`; pick another via **Actions → Playwright Tests → Run workflow**.
 Add any secrets the tests need as repo secrets and map them in the workflow's `env:` block.
 
+## API tests
+
+API specs live in `tests/api/` and run in the `api` project (once, no browser). The Public API uses HMAC auth;
+put the DLT key pair of each env in `.env` (`DEV_DLT_HUID`, `DEV_DLT_SECRET_KEY`, ...). Without it those tests are skipped.
+Automation refCodes start with `9` so they never clash with manual QA data.
+
 ## Structure
 
 ```
 config/     Environment settings (environments.js)
+helpers/    API clients, HMAC signing, test data builders
 pages/      Page Objects (extend BasePage)
 fixtures/   Custom test fixtures that inject page objects
-tests/      Test specs (*.spec.js)
+tests/      UI specs (*.spec.js)
+tests/api/  API specs
 ```
 
 ## Naming convention

@@ -25,8 +25,10 @@ jobs:
       - run: npx playwright test
         env:
           ENV: ${{ inputs.environment || 'dev' }}
-          # Add secrets used by tests here, e.g.
-          # UAT_USER_PASSWORD: ${{ secrets.UAT_USER_PASSWORD }}
+          DEV_DLT_HUID: ${{ secrets.DEV_DLT_HUID }}
+          DEV_DLT_SECRET_KEY: ${{ secrets.DEV_DLT_SECRET_KEY }}
+          UAT_DLT_HUID: ${{ secrets.UAT_DLT_HUID }}
+          UAT_DLT_SECRET_KEY: ${{ secrets.UAT_DLT_SECRET_KEY }}
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:

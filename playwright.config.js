@@ -23,7 +23,9 @@ module.exports = defineConfig({
     video: 'retain-on-failure',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    // API tests need no browser, so they run once in their own project
+    { name: 'api', testMatch: /tests[\\/]api[\\/].*\.spec\.js/ },
+    { name: 'chromium', testIgnore: /tests[\\/]api[\\/]/, use: { ...devices['Desktop Chrome'] } },
+    { name: 'webkit', testIgnore: /tests[\\/]api[\\/]/, use: { ...devices['Desktop Safari'] } },
   ],
 });
