@@ -71,10 +71,13 @@ test('HMAC helper matches the verification vector in the API doc', () => {
 });
 
 test.describe('Create Future Items API', () => {
-  test.skip(
-    !env.dlt.huid || !env.dlt.secretKey,
-    `Set ${ENV_NAME.toUpperCase()}_DLT_HUID and ${ENV_NAME.toUpperCase()}_DLT_SECRET_KEY in .env`,
-  );
+  // Required key pair: fail instead of skipping, so a run without it is not mistaken for a passing one
+  test.beforeEach(() => {
+    expect(
+      env.dlt.huid && env.dlt.secretKey,
+      `Set ${ENV_NAME.toUpperCase()}_DLT_HUID and ${ENV_NAME.toUpperCase()}_DLT_SECRET_KEY in .env`,
+    ).toBeTruthy();
+  });
 
   test.describe('TS02-TC01/TC02 create successfully', () => {
     test('TS02-TC01 50 items with all fields → 201 with tracking number per item', async ({ futureItemsApi }) => {

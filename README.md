@@ -44,13 +44,13 @@ Add any secrets the tests need as repo secrets and map them in the workflow's `e
 
 UI projects (`chromium`, and `webkit` when `WEBKIT=1`) depend on the `setup` project (`tests/auth.setup.js`), which logs in to the
 User Portal once with `USER_EMAIL` / `USER_PASSWORD` of the env (a DLT company account without 2FA) and saves the
-session to `playwright/.auth/user.json`. Specs start already logged in; use
+session to `playwright/.auth/user.json`. Without those credentials the setup fails, so the UI tests do not run. Specs start already logged in; use
 `test.use({ storageState: { cookies: [], origins: [] } })` for logged-out tests.
 
 ## API tests
 
 API specs live in `tests/api/` and run in the `api` project (once, no browser). The Public API uses HMAC auth;
-put the DLT key pair of each env in `.env` (`DEV_DLT_HUID`, `DEV_DLT_SECRET_KEY`, ...). Without it those tests are skipped.
+put the DLT key pair of each env in `.env` (`DEV_DLT_HUID`, `DEV_DLT_SECRET_KEY`, ...). Without it those tests fail; cases that need optional extra keys (`*_NON_DLT_*`, another env's DLT key) are skipped instead.
 Automation refCodes start with `9` so they never clash with manual QA data.
 
 ## Structure

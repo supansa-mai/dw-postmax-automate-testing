@@ -50,8 +50,6 @@ async function expectRows(futureItemsPage, items) {
 test.describe.configure({ mode: 'default' });
 
 test.describe('Future Items list (DLT)', () => {
-  test.skip(!env.user.email || !env.user.password, 'USER_EMAIL / USER_PASSWORD not set in .env');
-
   test.describe('TS04-TC01 ผู้ใช้งาน DLT เห็นหน้า "รายการพัสดุล่วงหน้า (DLT)" - Default', () => {
     test('เมนูพาไปหน้ารายการ และหน้าแสดงค่า default ก่อนเลือกวันที่', async ({ futureItemsPage, page }) => {
       await page.goto('');
