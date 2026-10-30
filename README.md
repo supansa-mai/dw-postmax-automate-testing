@@ -20,7 +20,7 @@ cp .env.example .env   # fill in secrets (credentials)
 | `npm run test:chromium` / `test:webkit` | Run on a single browser |
 | `npm run test:all-browsers` | Run on Chromium and WebKit |
 | `npm run test:headed` | Run with browser visible |
-| `npm run test:ui` | Playwright UI mode |
+| `npm run test:ui` | Playwright UI mode (API + Chromium tests listed by default) |
 | `npm run test:debug` | Step-through debugger |
 | `npm run report` | Open the last HTML report |
 | `npm run codegen -- <url>` | Record a test by clicking through the app |

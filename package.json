@@ -8,7 +8,7 @@
     "test:local": "cross-env ENV=local playwright test",
     "test:api": "playwright test --project=api",
     "test:headed": "playwright test --headed",
-    "test:ui": "playwright test --ui",
+    "test:ui": "playwright test --ui --project=api --project=chromium",
     "test:debug": "playwright test --debug",
     "report": "playwright show-report",
     "codegen": "playwright codegen",

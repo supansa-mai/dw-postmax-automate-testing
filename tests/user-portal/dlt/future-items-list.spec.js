@@ -18,7 +18,7 @@ const TODAY = thaiDate();
 const STATUS = { PENDING: 'รอสร้างใบนำส่ง', CONVERTED: 'สร้างใบนำส่งแล้ว', CANCELLED: 'ยกเลิก' };
 const PAYMENT = { PAID: 'ชำระเงินแล้ว', UNPAID: 'ยังไม่ชำระเงิน' };
 const COLUMNS = [
-  'Batch No.', 'หมายเลขอ้างอิง (DLT)', 'หมายเลขติดตาม', 'ชื่อผู้รับ', 'เบอร์ติดต่อ', 'อีเมล',
+  'Batch No.', 'หมายเลขอ้างอิง (DLT)', 'หมายเลขติดตาม', 'ชื่อผู้รับ', 'เบอร์โทรศัพท์', 'อีเมล',
   'วันที่ได้รับข้อมูล', 'สถานะ', 'สถานะการชำระเงิน', 'จัดการ',
 ];
 
@@ -251,10 +251,10 @@ test.describe('Future Items list (DLT)', () => {
     test('ประเภทการค้นหามีตัวเลือกครบ และ placeholder เปลี่ยนตามประเภท', async ({ futureItemsPage, page }) => {
       await futureItemsPage.goto();
       await futureItemsPage.searchField.click();
-      await expect(page.getByRole('option')).toHaveText(['ชื่อผู้รับ', 'หมายเลขอ้างอิง (DLT)', 'หมายเลขติดตาม', 'เบอร์ติดต่อ', 'อีเมล']);
+      await expect(page.getByRole('option')).toHaveText(['ชื่อผู้รับ', 'หมายเลขอ้างอิง (DLT)', 'หมายเลขติดตาม', 'เบอร์โทรศัพท์', 'อีเมล']);
       await page.keyboard.press('Escape');
 
-      for (const field of ['หมายเลขอ้างอิง (DLT)', 'หมายเลขติดตาม', 'เบอร์ติดต่อ', 'อีเมล', 'ชื่อผู้รับ']) {
+      for (const field of ['หมายเลขอ้างอิง (DLT)', 'หมายเลขติดตาม', 'เบอร์โทรศัพท์', 'อีเมล', 'ชื่อผู้รับ']) {
         await futureItemsPage.selectOption(futureItemsPage.searchField, field);
         await expect(futureItemsPage.searchInput).toHaveAttribute('placeholder', `ค้นหา${field}`);
       }
@@ -271,7 +271,7 @@ test.describe('Future Items list (DLT)', () => {
         ['หมายเลขอ้างอิง (DLT)', 'refCode', item.refCode.slice(0, 7)],
         ['หมายเลขติดตาม', 'trackingNumber', item.trackingNumber.toLowerCase()],
         ['ชื่อผู้รับ', 'receiverName', item.receiverName.split(' ')[1]],
-        ['เบอร์ติดต่อ', 'receiverPhone', item.receiverPhone.slice(2)],
+        ['เบอร์โทรศัพท์', 'receiverPhone', item.receiverPhone.slice(2)],
         ['อีเมล', 'receiverEmail', item.receiverEmail],
       ];
       for (const [label, field, text] of searches) {
@@ -286,7 +286,7 @@ test.describe('Future Items list (DLT)', () => {
     test('ค้นหาเบอร์ที่มี - คั่น ไม่พบรายการ', async ({ futureItemsApi, futureItemsPage }) => {
       const { batchRef, items: [item] } = await createBatch(futureItemsApi, 1);
       await futureItemsPage.openBatch(batchRef, TODAY);
-      await futureItemsPage.search('เบอร์ติดต่อ', `${item.receiverPhone.slice(0, 3)}-${item.receiverPhone.slice(3)}`);
+      await futureItemsPage.search('เบอร์โทรศัพท์', `${item.receiverPhone.slice(0, 3)}-${item.receiverPhone.slice(3)}`);
       await expect(futureItemsPage.noResult).toBeVisible();
       await expect(futureItemsPage.rows).toHaveCount(0);
     });
