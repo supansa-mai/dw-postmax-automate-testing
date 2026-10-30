@@ -83,8 +83,9 @@ class FutureItemsPage extends BasePage {
       while ((await this.calendarMonth.innerText()) !== label && (await button.isEnabled())) {
         const current = await this.calendarMonth.innerText();
         await button.click();
-        // Both months stay in the DOM until the slide animation ends
-        await expect(this.calendarMonth).not.toHaveText(current);
+        // Both months (header label and day grid) stay in the DOM until the slide animation ends
+        await expect(this.calendarMonth.filter({ hasNotText: current })).toHaveCount(1);
+        await expect(this.calendarMonth).toHaveCount(1);
         await expect(this.calendar.locator('.MuiDayCalendar-monthContainer')).toHaveCount(1);
       }
     }

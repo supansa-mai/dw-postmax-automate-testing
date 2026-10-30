@@ -39,6 +39,14 @@ jobs:
           DEV_USER_PASSWORD: ${{ secrets.DEV_USER_PASSWORD }}
           UAT_USER_EMAIL: ${{ secrets.UAT_USER_EMAIL }}
           UAT_USER_PASSWORD: ${{ secrets.UAT_USER_PASSWORD }}
+          DEV_NORMAL_USER_EMAIL: ${{ secrets.DEV_NORMAL_USER_EMAIL }}
+          DEV_NORMAL_USER_PASSWORD: ${{ secrets.DEV_NORMAL_USER_PASSWORD }}
+          DEV_TSD_USER_EMAIL: ${{ secrets.DEV_TSD_USER_EMAIL }}
+          DEV_TSD_USER_PASSWORD: ${{ secrets.DEV_TSD_USER_PASSWORD }}
+          UAT_NORMAL_USER_EMAIL: ${{ secrets.UAT_NORMAL_USER_EMAIL }}
+          UAT_NORMAL_USER_PASSWORD: ${{ secrets.UAT_NORMAL_USER_PASSWORD }}
+          UAT_TSD_USER_EMAIL: ${{ secrets.UAT_TSD_USER_EMAIL }}
+          UAT_TSD_USER_PASSWORD: ${{ secrets.UAT_TSD_USER_PASSWORD }}
           DEV_DLT_HUID: ${{ secrets.DEV_DLT_HUID }}
           DEV_DLT_SECRET_KEY: ${{ secrets.DEV_DLT_SECRET_KEY }}
           UAT_DLT_HUID: ${{ secrets.UAT_DLT_HUID }}

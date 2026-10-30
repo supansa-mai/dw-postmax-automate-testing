@@ -50,6 +50,15 @@ const env = {
     email: process.env[`${prefix}_USER_EMAIL`],
     password: process.env[`${prefix}_USER_PASSWORD`],
   },
+  // User Portal accounts without is_dlt, for the menu access checks (SCENARIO 1)
+  normalUser: {
+    email: process.env[`${prefix}_NORMAL_USER_EMAIL`],
+    password: process.env[`${prefix}_NORMAL_USER_PASSWORD`],
+  },
+  tsdUser: {
+    email: process.env[`${prefix}_TSD_USER_EMAIL`],
+    password: process.env[`${prefix}_TSD_USER_PASSWORD`],
+  },
   dlt: dltCredentialsOf(ENV_NAME),
   otherEnvDlt: otherEnvName && { envName: otherEnvName, ...dltCredentialsOf(otherEnvName) },
   // Public API credential of a non-DLT customer (e.g. preloads), used for negative tests

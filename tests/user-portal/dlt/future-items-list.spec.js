@@ -1,12 +1,14 @@
 /**
  * รายการพัสดุล่วงหน้า (DLT) — User Portal /th/future-items
- * Test cases: sheet "User Portal_DLT" > SCENARIO 4 (TS04-*) list, SCENARIO 5 (TS05-*) cancel
+ * Test cases: sheet "User Portal_DLT" > SCENARIO 1 (TS01-*) menu access by DLT flag (UI only),
+ *   SCENARIO 4 (TS04-*) list, SCENARIO 5 (TS05-*) cancel
  * Jira: CPM-1756, CPM-1792 (sorting)
  * Figma: "Future Items (DLT)" > Search&Filter / Future List, ลบรายการ
  *
  * Each test creates its own batch through the Create Future Items API and filters the list by
  * today + that batch, so card counts and rows only come from data the test created.
- * Not covered here: TS05-TC01 step 6 (scan a cancelled item) and TS05-TC04 (cancelled while
+ * Not covered here: TS01-TC03 step 4 (DLT APIs with a non-DLT token) belongs to the API specs;
+ * TS01-TC04 (items of another DLT company) needs a second DLT company account; TS05-TC01 step 6 (scan a cancelled item) and TS05-TC04 (cancelled while
  * scanned by another user, CPM-1805) belong to the scan / create shipment specs.
  */
 const { test, expect } = require('../../../fixtures');
@@ -17,6 +19,10 @@ const { thaiDate, thaiDateTime, daysFromNow } = require('../../../helpers/thaiDa
 const TODAY = thaiDate();
 const STATUS = { PENDING: 'รอสร้างใบนำส่ง', CONVERTED: 'สร้างใบนำส่งแล้ว', CANCELLED: 'ยกเลิก' };
 const PAYMENT = { PAID: 'ชำระเงินแล้ว', UNPAID: 'ยังไม่ชำระเงิน' };
+// Top menu of a DLT user; the sheet says "หน้าแรก", the portal shows "หน้าหลัก"
+const DLT_MENU = 'รายการพัสดุล่วงหน้า (DLT)';
+const MENU = ['หน้าหลัก', 'เตรียมการฝากส่ง', DLT_MENU, 'การฝากส่งของฉัน', 'รายงานข้อมูล'];
+const NON_DLT_MENU = MENU.filter((name) => name !== DLT_MENU);
 const COLUMNS = [
   'Batch No.', 'หมายเลขอ้างอิง (DLT)', 'หมายเลขติดตาม', 'ชื่อผู้รับ', 'เบอร์โทรศัพท์', 'อีเมล',
   'วันที่ได้รับข้อมูล', 'สถานะ', 'สถานะการชำระเงิน', 'จัดการ',
@@ -40,6 +46,14 @@ function unpaidCount(items) {
   return items.filter((i) => i.paymentStatus === 'UNPAID').length;
 }
 
+/** Logs in with another account; use with an empty storageState so the saved DLT session is not reused */
+async function loginAs(loginPage, account, label) {
+  expect(account.email && account.password, `${label} not set in .env`).toBeTruthy();
+  await loginPage.goto();
+  await loginPage.login(account);
+  await expect(loginPage.page).not.toHaveURL(/log-in/);
+}
+
 // Polls because the old rows stay on screen until the request for the new filter returns
 async function expectRows(futureItemsPage, items) {
   const byId = (a, b) => a - b;
@@ -50,6 +64,39 @@ async function expectRows(futureItemsPage, items) {
 test.describe.configure({ mode: 'default' });
 
 test.describe('Future Items list (DLT)', () => {
+  test.describe('TS01-TC01 ผู้ใช้งาน DLT สามารถเห็นเมนู "รายการพัสดุล่วงหน้า (DLT)"', () => {
+    test('เมนูแสดงถัดจาก เตรียมการฝากส่ง และกดแล้วเข้าหน้ารายการ พร้อม highlight เมนู', async ({ basePage, futureItemsPage, page }) => {
+      await basePage.goto();
+      await expect(basePage.menuLinks).toHaveText(MENU);
+
+      await basePage.menuLink(DLT_MENU).click();
+      await expect(page).toHaveURL(/\/th\/future-items/);
+      await expect(futureItemsPage.title).toBeVisible();
+      for (const name of MENU) {
+        await expect(basePage.menuLabel(name)).toHaveCSS('font-weight', name === DLT_MENU ? '700' : '400');
+      }
+    });
+  });
+
+  test.describe('TS01-TC02 ผู้ใช้งานที่ไม่มี flag DLT ไม่เห็นเมนู "รายการพัสดุล่วงหน้า (DLT)"', () => {
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test('ผู้ใช้งานทั่วไป ไม่เห็นเมนู DLT และเมนูอื่นแสดงตามเดิม', async ({ basePage, loginPage }) => {
+      await loginAs(loginPage, env.normalUser, 'NORMAL_USER_EMAIL / NORMAL_USER_PASSWORD');
+      await expect(basePage.menuLinks).toHaveText(NON_DLT_MENU);
+    });
+
+    test('ผู้ใช้งาน TSD ไม่เห็นเมนู DLT และเมนูของ TSD แสดงตามเดิม', async ({ basePage, loginPage }) => {
+      await loginAs(loginPage, env.tsdUser, 'TSD_USER_EMAIL / TSD_USER_PASSWORD');
+      await expect(basePage.menuLinks).toHaveText([...NON_DLT_MENU, 'รายงานประจำเดือน']);
+    });
+  });
+
+  test.describe('TS01-TC03 ผู้ใช้งานที่ไม่มี flag DLT เข้าหน้า DLT ผ่าน URL โดยตรงไม่ได้', () => {
+    // Today normal and TSD users can still open /future-items directly
+    test.fixme('เปิด URL หน้ารายการ / หน้าสร้างใบนำส่ง (DLT) โดยตรงไม่ได้ (On Hold)', async () => {});
+  });
+
   test.describe('TS04-TC01 ผู้ใช้งาน DLT เห็นหน้า "รายการพัสดุล่วงหน้า (DLT)" - Default', () => {
     test('เมนูพาไปหน้ารายการ และหน้าแสดงค่า default ก่อนเลือกวันที่', async ({ futureItemsPage, page }) => {
       await page.goto('');
