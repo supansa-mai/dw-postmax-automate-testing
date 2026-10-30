@@ -32,12 +32,21 @@ if (!environments[ENV_NAME]) {
 const prefix = ENV_NAME.toUpperCase();
 
 // Secrets per env from .env, e.g. DEV_DLT_HUID / DEV_DLT_SECRET_KEY
+function dltCredentialsOf(envName) {
+  const p = envName.toUpperCase();
+  return { huid: process.env[`${p}_DLT_HUID`], secretKey: process.env[`${p}_DLT_SECRET_KEY`] };
+}
+
+// First other env that has a DLT key pair, used to check keys don't work across environments
+const otherEnvName = Object.keys(environments).find((name) => {
+  const creds = dltCredentialsOf(name);
+  return name !== ENV_NAME && creds.huid && creds.secretKey;
+});
+
 const env = {
   ...environments[ENV_NAME],
-  dlt: {
-    huid: process.env[`${prefix}_DLT_HUID`],
-    secretKey: process.env[`${prefix}_DLT_SECRET_KEY`],
-  },
+  dlt: dltCredentialsOf(ENV_NAME),
+  otherEnvDlt: otherEnvName && { envName: otherEnvName, ...dltCredentialsOf(otherEnvName) },
   // Public API credential of a non-DLT customer (e.g. preloads), used for negative tests
   nonDlt: {
     huid: process.env[`${prefix}_NON_DLT_HUID`],

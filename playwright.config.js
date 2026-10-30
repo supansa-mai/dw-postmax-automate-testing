@@ -23,8 +23,9 @@ module.exports = defineConfig({
     video: 'retain-on-failure',
   },
   projects: [
-    // API tests need no browser, so they run once in their own project
-    { name: 'api', testMatch: /tests[\\/]api[\\/].*\.spec\.js/ },
+    // API tests need no browser, so they run once in their own project.
+    // Not parallel: dev API's DB pool is only 3 connections and returns 500 under concurrent load.
+    { name: 'api', testMatch: /tests[\\/]api[\\/].*\.spec\.js/, fullyParallel: false },
     { name: 'chromium', testIgnore: /tests[\\/]api[\\/]/, use: { ...devices['Desktop Chrome'] } },
     { name: 'webkit', testIgnore: /tests[\\/]api[\\/]/, use: { ...devices['Desktop Safari'] } },
   ],
