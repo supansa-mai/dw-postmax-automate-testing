@@ -12,7 +12,7 @@ Playwright (JavaScript, CommonJS) automation tests for PostMax: UI E2E tests and
 npm install && npx playwright install chromium webkit
 cp .env.example .env                 # fill in secrets
 
-npm test                             # all projects, ENV=dev
+npm test                             # api + chromium, ENV=dev (webkit only with WEBKIT=1: test:webkit / test:all-browsers)
 npm run test:uat                     # target env: test:dev / test:uat / test:local
 npm run test:api                     # API project only (no browser)
 npx playwright test tests/api/create-future-items.spec.js -g "TS02-TC07"   # single file / test by title
@@ -23,7 +23,7 @@ npm run report                       # open last HTML report
 ## Architecture
 
 - **Environment selection**: `config/environments.js` is the only place URLs live (`baseURL` for UI, `apiURL` for API). `ENV` picks the env (default `dev`). Secrets come from `.env` with an env-name prefix (`DEV_DLT_HUID`, `UAT_DLT_SECRET_KEY`, ...), and are exposed on the exported `env` object (`env.dlt`, `env.nonDlt`). A new secret means: add it to `.env.example`, read it in `environments.js`, and map it in `.github/workflows/playwright.yml` `env:` for CI.
-- **Playwright projects** (`playwright.config.js`): `api` runs only `tests/api/**` once with no browser; `chromium` and `webkit` run everything else. `baseURL` keeps the `/th` prefix via a trailing slash, so UI navigation uses relative paths without a leading slash (`goto('log-in')`).
+- **Playwright projects** (`playwright.config.js`): `api` runs only `tests/api/**` once with no browser; `chromium` runs everything else; `webkit` is opt-in via `WEBKIT=1` (nightly CI and `npm run test:webkit`). `baseURL` keeps the `/th` prefix via a trailing slash, so UI navigation uses relative paths without a leading slash (`goto('log-in')`).
 - **Fixtures** (`fixtures/index.js`): specs import `{ test, expect }` from `../../fixtures`, not from `@playwright/test`. Page objects (extending `pages/BasePage.js`) and API clients (`helpers/*Api.js`) are registered there and injected as fixtures, e.g. `futureItemsApi`.
 - **Public API auth** (`helpers/hmac.js`): `x-signature = hex(HMAC-SHA256(base64-decode(secretKey), METHOD + unixTimestamp))` with `x-huid` / `x-timestamp` headers. API clients sign by default; pass `{ headers }` to `create()` to fully override (negative auth tests).
 - **Test data** (`helpers/testData.js`, `helpers/futureItemsApi.js`): random Thai names, phones, real postal codes, etc. Automation `refCode`s are 9 digits starting with `9` (manual QA data uses `61000xxxx`) and `batchRef`s start with `AUTO_`, so runs never collide with each other or with manual data. Always generate them with `uniqueRefCodes()` / `uniqueBatchRef()`.

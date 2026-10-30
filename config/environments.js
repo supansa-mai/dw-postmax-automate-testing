@@ -45,6 +45,11 @@ const otherEnvName = Object.keys(environments).find((name) => {
 
 const env = {
   ...environments[ENV_NAME],
+  // User Portal account of a DLT company (is_dlt), used by UI tests via tests/auth.setup.js
+  user: {
+    email: process.env[`${prefix}_USER_EMAIL`],
+    password: process.env[`${prefix}_USER_PASSWORD`],
+  },
   dlt: dltCredentialsOf(ENV_NAME),
   otherEnvDlt: otherEnvName && { envName: otherEnvName, ...dltCredentialsOf(otherEnvName) },
   // Public API credential of a non-DLT customer (e.g. preloads), used for negative tests

@@ -13,7 +13,8 @@
     "report": "playwright show-report",
     "codegen": "playwright codegen",
     "test:chromium": "playwright test --project=chromium",
-    "test:webkit": "playwright test --project=webkit"
+    "test:webkit": "cross-env WEBKIT=1 playwright test --project=webkit",
+    "test:all-browsers": "cross-env WEBKIT=1 playwright test"
   },
   "keywords": [],
   "author": "",

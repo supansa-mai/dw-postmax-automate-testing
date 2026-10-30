@@ -14,10 +14,11 @@ cp .env.example .env   # fill in secrets (credentials)
 
 | Command | Description |
 | --- | --- |
-| `npm test` | Run all tests (headless) |
+| `npm test` | Run all tests on Chromium + API (headless) |
 | `npm run test:dev` / `test:uat` / `test:local` | Run against a specific environment |
 | `npm run test:api` | Run API tests only (no browser) |
 | `npm run test:chromium` / `test:webkit` | Run on a single browser |
+| `npm run test:all-browsers` | Run on Chromium and WebKit |
 | `npm run test:headed` | Run with browser visible |
 | `npm run test:ui` | Playwright UI mode |
 | `npm run test:debug` | Step-through debugger |
@@ -33,10 +34,18 @@ Add a new env by adding a key to that file.
 Secrets (credentials, tokens) go in `.env` (git-ignored; copy from `.env.example`).
 Prefix keys with the env name when values differ per env, e.g. `DEV_USER_PASSWORD`.
 
-Combine with other flags: `npm run test:dev -- --project=webkit --headed`
+Combine with other flags: `npm run test:dev -- --project=chromium --headed`
 
-In CI, push/PR runs use `dev`; pick another via **Actions → Playwright Tests → Run workflow**.
+In CI, push/PR runs use `dev` on Chromium only; pick another env (or tick **Also run on WebKit**) via
+**Actions → Playwright Tests → Run workflow**. A nightly scheduled run covers Chromium and WebKit.
 Add any secrets the tests need as repo secrets and map them in the workflow's `env:` block.
+
+## UI tests
+
+UI projects (`chromium`, and `webkit` when `WEBKIT=1`) depend on the `setup` project (`tests/auth.setup.js`), which logs in to the
+User Portal once with `USER_EMAIL` / `USER_PASSWORD` of the env (a DLT company account without 2FA) and saves the
+session to `playwright/.auth/user.json`. Specs start already logged in; use
+`test.use({ storageState: { cookies: [], origins: [] } })` for logged-out tests.
 
 ## API tests
 
@@ -51,7 +60,7 @@ config/     Environment settings (environments.js)
 helpers/    API clients, HMAC signing, test data builders
 pages/      Page Objects (extend BasePage)
 fixtures/   Custom test fixtures that inject page objects
-tests/      UI specs (*.spec.js)
+tests/      UI specs (*.spec.js), auth.setup.js
 tests/api/  API specs
 ```
 

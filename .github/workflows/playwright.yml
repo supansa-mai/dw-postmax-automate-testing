@@ -4,6 +4,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Nightly run on all browsers (WebKit included), 02:00 Bangkok time
+  schedule:
+    - cron: '0 19 * * *'
   workflow_dispatch:
     inputs:
       environment:
@@ -11,20 +14,31 @@ on:
         type: choice
         options: [dev, uat]
         default: dev
+      webkit:
+        description: Also run on WebKit
+        type: boolean
+        default: false
 jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    env:
+      # Empty string keeps the webkit project out of the config
+      WEBKIT: ${{ (github.event_name == 'schedule' || inputs.webkit) && '1' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
       - run: npm ci
-      - run: npx playwright install --with-deps chromium webkit
+      - run: npx playwright install --with-deps chromium ${{ env.WEBKIT && 'webkit' || '' }}
       - run: npx playwright test
         env:
           ENV: ${{ inputs.environment || 'dev' }}
+          DEV_USER_EMAIL: ${{ secrets.DEV_USER_EMAIL }}
+          DEV_USER_PASSWORD: ${{ secrets.DEV_USER_PASSWORD }}
+          UAT_USER_EMAIL: ${{ secrets.UAT_USER_EMAIL }}
+          UAT_USER_PASSWORD: ${{ secrets.UAT_USER_PASSWORD }}
           DEV_DLT_HUID: ${{ secrets.DEV_DLT_HUID }}
           DEV_DLT_SECRET_KEY: ${{ secrets.DEV_DLT_SECRET_KEY }}
           UAT_DLT_HUID: ${{ secrets.UAT_DLT_HUID }}
