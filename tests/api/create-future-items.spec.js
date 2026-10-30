@@ -79,9 +79,9 @@ test.describe('Create Future Items API', () => {
     ).toBeTruthy();
   });
 
-  test.describe('TS02-TC01/TC02 create successfully', () => {
-    test('TS02-TC01 50 items with all fields → 201 with tracking number per item', async ({ futureItemsApi }) => {
-      // 50 items per batch matches DLT's real usage
+  test.describe('TS02-TC01 create with all fields', () => {
+    test('50 items → 201 with a unique tracking number per item', async ({ futureItemsApi }) => {
+
       const payload = buildPayload({ refCodes: uniqueRefCodes(50) });
 
       const data = await expectSuccess(await futureItemsApi.create(payload));
@@ -92,8 +92,10 @@ test.describe('Create Future Items API', () => {
       expect(data.duplicateRefCodes).toEqual([]);
       expect(new Set(data.items.map((i) => i.trackingNumber)).size).toBe(50);
     });
+  });
 
-    test('TS02-TC02 without optional receiverPhone / receiverEmail → 201', async ({ futureItemsApi }) => {
+  test.describe('TS02-TC02 create without optional fields', () => {
+    test('without receiverPhone / receiverEmail → 201', async ({ futureItemsApi }) => {
       const item = omit(omit(buildItem(), 'receiverPhone'), 'receiverEmail');
 
       const data = await expectSuccess(await futureItemsApi.create({ batchRef: uniqueBatchRef(), items: [item] }));
