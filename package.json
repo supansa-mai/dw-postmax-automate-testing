@@ -7,8 +7,9 @@
     "test:uat": "cross-env ENV=uat playwright test",
     "test:local": "cross-env ENV=local playwright test",
     "test:api": "playwright test --project=api",
+    "test:eod": "playwright test --project=eod",
     "test:headed": "playwright test --headed",
-    "test:ui": "playwright test --ui --project=api --project=chromium",
+    "test:ui": "playwright test --ui --project=api --project=chromium --project=eod",
     "test:debug": "playwright test --debug",
     "report": "playwright show-report",
     "codegen": "playwright codegen",
@@ -21,6 +22,7 @@
   "license": "ISC",
   "description": "PostMax E2E automation tests with Playwright",
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1161.0",
     "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.5",
     "cross-env": "^10.1.0",

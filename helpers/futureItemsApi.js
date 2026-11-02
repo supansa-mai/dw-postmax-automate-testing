@@ -1,4 +1,5 @@
 const { randomInt } = require('crypto');
+const { expect } = require('@playwright/test');
 const { buildHmacHeaders } = require('./hmac');
 const { randomThaiName, randomThaiPhone, randomEmail, randomThaiAddress, randomThaiPostalCode, randomWeight } = require('./testData');
 
@@ -57,9 +58,19 @@ function buildPayload({ refCodes = uniqueRefCodes(1), batchRef = uniqueBatchRef(
   return { batchRef, items: refCodes.map((refCode) => buildItem({ ...itemOverrides, refCode })) };
 }
 
+/** Creates `count` future items in one batch; returns them with id / trackingNumber / paymentStatus */
+async function createBatch(api, count, batchRef) {
+  const payload = buildPayload({ refCodes: uniqueRefCodes(count), ...(batchRef && { batchRef }) });
+  const response = await api.create(payload);
+  expect(response.status(), await response.text()).toBe(201);
+  const { data } = await response.json();
+  const items = payload.items.map((item) => ({ ...item, ...data.items.find((i) => i.refCode === item.refCode) }));
+  return { batchRef: payload.batchRef, items };
+}
+
 function omit(obj, key) {
   const { [key]: _omitted, ...rest } = obj;
   return rest;
 }
 
-module.exports = { FutureItemsApi, uniqueRefCodes, uniqueBatchRef, buildItem, buildPayload, omit };
+module.exports = { FutureItemsApi, uniqueRefCodes, uniqueBatchRef, buildItem, buildPayload, createBatch, omit };

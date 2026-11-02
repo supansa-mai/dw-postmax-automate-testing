@@ -157,6 +157,27 @@ class FutureItemsPage extends BasePage {
     return this.rows.evaluateAll((rows) => rows.map((r) => Number(r.dataset.id)));
   }
 
+  /**
+   * Refreshes the current list until the payment reconcile job has marked `items` paid.
+   * The job runs every 5 minutes on dev and only processes the latest uploaded EOD file.
+   */
+  async waitUntilPaid(items, fileName) {
+    await expect.poll(async () => {
+      // expect.poll stops at the first error, so a slow reload on dev must not end the wait
+      try {
+        await this.reload();
+        await this.scrollGrid('end');
+        return await Promise.all(items.map((item) => this.cell(item.id, 'paymentStatus').innerText({ timeout: 15000 })));
+      } catch (error) {
+        return error.message.split('\n')[0];
+      }
+    }, {
+      message: `reconcile job did not process ${fileName}; was another EOD file uploaded after it?`,
+      timeout: 8 * 60 * 1000,
+      intervals: [15000],
+    }).toEqual(items.map(() => 'ชำระเงินแล้ว'));
+  }
+
   async cancelItem(id) {
     await this.scrollGrid('end');
     await this.cancelButton(id).click();

@@ -14,13 +14,14 @@ cp .env.example .env   # fill in secrets (credentials)
 
 | Command | Description |
 | --- | --- |
-| `npm test` | Run all tests on Chromium + API (headless) |
+| `npm test` | Run all tests on Chromium + API, incl. the eod project (headless) |
 | `npm run test:dev` / `test:uat` / `test:local` | Run against a specific environment |
 | `npm run test:api` | Run API tests only (no browser) |
+| `npm run test:eod` | Run only the specs that need paid items (uploads an EOD file to S3, waits 5–10 min) |
 | `npm run test:chromium` / `test:webkit` | Run on a single browser |
 | `npm run test:all-browsers` | Run on Chromium and WebKit |
 | `npm run test:headed` | Run with browser visible |
-| `npm run test:ui` | Playwright UI mode (API + Chromium tests listed by default) |
+| `npm run test:ui` | Playwright UI mode (API, Chromium and eod tests listed by default) |
 | `npm run test:debug` | Step-through debugger |
 | `npm run report` | Open the last HTML report |
 | `npm run codegen -- <url>` | Record a test by clicking through the app |
@@ -46,6 +47,16 @@ UI projects (`chromium`, and `webkit` when `WEBKIT=1`) depend on the `setup` pro
 User Portal once with `USER_EMAIL` / `USER_PASSWORD` of the env (a DLT company account without 2FA) and saves the
 session to `playwright/.auth/user.json`. Without those credentials the setup fails, so the UI tests do not run. Specs start already logged in; use
 `test.use({ storageState: { cookies: [], origins: [] } })` for logged-out tests.
+
+## Specs that need paid items (eod project)
+
+Specs listed in `EOD_SPECS` (`playwright.config.js`), e.g. `payment-reconcile.spec.js`, run in the `eod` project, which
+depends on `eod-setup` (`tests/eod.setup.js`). That setup creates the future items each spec needs (one batch per group
+in `GROUPS`), uploads one bank EOD file (`helpers/eodFile.js`, `helpers/eodBucket.js`, `*_EOD_S3_*` in `.env`) and
+waits for the reconcile job, which runs every 5 minutes on dev, then saves the items to `playwright/.eod/items.json`
+for the specs (`readEodItems()`). It runs automatically with `npm test`, `npm run test:eod`, or any single spec of the
+eod project; other specs never wait for it. The job only processes the latest uploaded file, so don't upload EOD
+files by hand while it runs. A new spec that needs paid items: add it to `EOD_SPECS` and a group to `GROUPS`.
 
 ## API tests
 

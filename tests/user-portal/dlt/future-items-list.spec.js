@@ -13,7 +13,7 @@
  */
 const { test, expect } = require('../../../fixtures');
 const { env } = require('../../../config/environments');
-const { FutureItemsApi, buildPayload, uniqueRefCodes } = require('../../../helpers/futureItemsApi');
+const { FutureItemsApi, createBatch } = require('../../../helpers/futureItemsApi');
 const { thaiDate, thaiDateTime, daysFromNow } = require('../../../helpers/thaiDate');
 
 const TODAY = thaiDate();
@@ -27,16 +27,6 @@ const COLUMNS = [
   'Batch No.', 'หมายเลขอ้างอิง (DLT)', 'หมายเลขติดตาม', 'ชื่อผู้รับ', 'เบอร์โทรศัพท์', 'อีเมล',
   'วันที่ได้รับข้อมูล', 'สถานะ', 'สถานะการชำระเงิน', 'จัดการ',
 ];
-
-/** Creates `count` future items in one batch; returns them with id / trackingNumber / paymentStatus */
-async function createBatch(api, count, batchRef) {
-  const payload = buildPayload({ refCodes: uniqueRefCodes(count), ...(batchRef && { batchRef }) });
-  const response = await api.create(payload);
-  expect(response.status(), await response.text()).toBe(201);
-  const { data } = await response.json();
-  const items = payload.items.map((item) => ({ ...item, ...data.items.find((i) => i.refCode === item.refCode) }));
-  return { batchRef: payload.batchRef, items };
-}
 
 function range(from, to) {
   return Array.from({ length: to - from + 1 }, (_, i) => from + i);

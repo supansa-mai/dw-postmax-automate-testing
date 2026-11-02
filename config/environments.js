@@ -60,6 +60,16 @@ const env = {
     password: process.env[`${prefix}_TSD_USER_PASSWORD`],
   },
   dlt: dltCredentialsOf(ENV_NAME),
+  // S3 folder of the bank EOD files read by the payment reconcile job (tests/user-portal/dlt/payment-reconcile.spec.js)
+  eod: {
+    region: process.env[`${prefix}_EOD_S3_REGION`],
+    bucket: process.env[`${prefix}_EOD_S3_BUCKET`],
+    prefix: process.env[`${prefix}_EOD_S3_PREFIX`],
+    accessKeyId: process.env[`${prefix}_EOD_S3_ACCESS_KEY_ID`],
+    secretAccessKey: process.env[`${prefix}_EOD_S3_SECRET_ACCESS_KEY`],
+    // Company (biller) account written in every record of the file
+    companyAccount: process.env[`${prefix}_EOD_COMPANY_ACCOUNT`],
+  },
   otherEnvDlt: otherEnvName && { envName: otherEnvName, ...dltCredentialsOf(otherEnvName) },
   // Public API credential of a non-DLT customer (e.g. preloads), used for negative tests
   nonDlt: {
