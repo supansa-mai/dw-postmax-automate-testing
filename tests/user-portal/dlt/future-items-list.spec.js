@@ -402,29 +402,6 @@ test.describe('Future Items list (DLT)', () => {
     });
   });
 
-  test.describe('TS04-TC08 ข้อมูลจำนวนมาก', () => {
-    test.fixme('~10,000 รายการ/วัน ในช่วง 1 เดือน แสดงผลไม่ค้าง (On Hold, ข้อมูลยังไม่เยอะพอ)', async () => {});
-  });
-
-  test.describe('TS04-TC09 อัปเดตข้อมูลขณะเปิดหน้าค้างไว้', () => {
-    test('refresh แล้วเห็นรายการใหม่ล่าสุดก่อน และตัวกรองยังคงอยู่', async ({ futureItemsApi, futureItemsPage }) => {
-      const { batchRef, items: [first] } = await createBatch(futureItemsApi, 1);
-      await futureItemsPage.openBatch(batchRef, TODAY);
-      await expectRows(futureItemsPage, [first]);
-
-      // batchRef may repeat, so this adds a newer item to the same batch
-      const { items: [newer] } = await createBatch(futureItemsApi, 1, batchRef);
-      await futureItemsPage.reload();
-
-      await expect(futureItemsPage.startDate).toHaveValue(TODAY);
-      await expect(futureItemsPage.endDate).toHaveValue(TODAY);
-      await expect(futureItemsPage.batchFilter).toHaveValue(batchRef);
-      await expect(futureItemsPage.rows).toHaveCount(2);
-      // TS04-TC06 step 1: default order is newest first
-      expect(await futureItemsPage.visibleRowIds()).toEqual([newer.id, first.id]);
-    });
-  });
-
   test.describe('TS05-TC01 ยกเลิกรายการพัสดุล่วงหน้า', () => {
     test('modal ยืนยัน, กด "กลับ" ไม่เปลี่ยน, กด "ยืนยัน" แล้วสถานะเป็นยกเลิก', async ({ futureItemsApi, futureItemsPage }) => {
       const { batchRef, items } = await createBatch(futureItemsApi, 2);

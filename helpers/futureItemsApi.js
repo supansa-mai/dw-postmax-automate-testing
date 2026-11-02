@@ -35,8 +35,9 @@ function uniqueRefCodes(count) {
   return Array.from({ length: count }, (_, i) => `9${String(start + i).padStart(8, '0')}`);
 }
 
+// AUTO_ + 8 random digits, e.g. AUTO_04817263
 function uniqueBatchRef() {
-  return `AUTO_${Date.now()}_${randomInt(1000, 9999)}`;
+  return `AUTO_${String(randomInt(0, 1e8)).padStart(8, '0')}`;
 }
 
 function buildItem(overrides = {}) {
