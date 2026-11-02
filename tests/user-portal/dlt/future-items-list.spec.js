@@ -9,7 +9,7 @@
  * today + that batch, so card counts and rows only come from data the test created.
  * Not covered here: TS01-TC03 step 4 (DLT APIs with a non-DLT token) belongs to the API specs;
  * TS01-TC04 (items of another DLT company) needs a second DLT company account; TS05-TC01 step 6 (scan a cancelled item) and TS05-TC04 (cancelled while
- * scanned by another user, CPM-1805) belong to the scan / create shipment specs.
+ * scanned by another user, CPM-1805) belong to the scan / create shipment specs
  */
 const { test, expect } = require('../../../fixtures');
 const { env } = require('../../../config/environments');
@@ -429,9 +429,5 @@ test.describe('Future Items list (DLT)', () => {
 
   test.describe('TS05-TC02 ยกเลิกไม่ได้เมื่อสร้างใบนำส่งแล้ว', () => {
     test.fixme('ปุ่ม "× ยกเลิก" disable เมื่อสถานะ "สร้างใบนำส่งแล้ว" (needs the create shipment flow, TS08)', async () => {});
-  });
-
-  test.describe('TS05-TC03 ยกเลิกรายการที่ชำระเงินแล้ว', () => {
-    test.fixme('ยกเลิกได้ และสถานะการชำระเงินยังเป็นชำระเงินแล้ว (needs a PAID item from the EOD job, TS03)', async () => {});
   });
 });

@@ -1,6 +1,7 @@
 /**
  * Payment reconcile from the bank EOD file — S3 folder → reconcile job (every 5 minutes on dev) → paymentStatus
  * Test cases: sheet "User Portal_DLT" > SCENARIO 3 (TS03-*)
+ *   and SCENARIO 5 TS05-TC03 (cancel a paid item, needs an item the job has marked paid)
  * Jira: CPM-1781
  *
  * Runs in the eod project: tests/eod.setup.js has already created the items, uploaded one EOD file and waited
@@ -25,9 +26,11 @@ test.describe('Payment reconcile (EOD file)', () => {
   let reconcile;
   /** In the EOD file before its future item was sent */
   let earlyRefCode;
+  /** Batch with 1 paid item, cancelled by TS05-TC03 */
+  let cancelPaid;
 
   test.beforeAll(() => {
-    ({ groups: { reconcile }, earlyRefCode } = readEodItems());
+    ({ groups: { reconcile, cancelPaid }, earlyRefCode } = readEodItems());
   });
 
   test.describe('TS03-TC01 ระบบอัปเดตสถานะการชำระเงินเป็น "ชำระเงินแล้ว" - ref code ตรงกับไฟล์ EOD', () => {
@@ -64,6 +67,27 @@ test.describe('Payment reconcile (EOD file)', () => {
 
       await futureItemsPage.openBatch(payload.batchRef, TODAY);
       await futureItemsPage.scrollGrid('end');
+      await expect(futureItemsPage.cell(item.id, 'paymentStatus')).toHaveText(PAID);
+    });
+  });
+
+  test.describe('TS05-TC03 ยกเลิกรายการที่ชำระเงินแล้ว', () => {
+    test('ยกเลิกได้ และสถานะการชำระเงินยังเป็นชำระเงินแล้ว', async ({ futureItemsPage }) => {
+      const [item] = cancelPaid.paid;
+      await futureItemsPage.openBatch(cancelPaid.batchRef, TODAY);
+      await futureItemsPage.scrollGrid('end');
+      await expect(futureItemsPage.cell(item.id, 'paymentStatus')).toHaveText(PAID);
+
+      await futureItemsPage.cancelItem(item.id);
+      await expect(futureItemsPage.toast).toHaveText('ยกเลิกรายการสำเร็จ');
+      await expect(futureItemsPage.cell(item.id, 'status')).toHaveText('ยกเลิก');
+      await expect(futureItemsPage.cell(item.id, 'paymentStatus')).toHaveText(PAID);
+      await expect(futureItemsPage.cancelButton(item.id)).toBeDisabled();
+
+      // Still paid after a reload, not only in the client state
+      await futureItemsPage.reload();
+      await futureItemsPage.scrollGrid('end');
+      await expect(futureItemsPage.cell(item.id, 'status')).toHaveText('ยกเลิก');
       await expect(futureItemsPage.cell(item.id, 'paymentStatus')).toHaveText(PAID);
     });
   });

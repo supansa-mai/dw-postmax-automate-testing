@@ -14,6 +14,8 @@ const { thaiDate } = require('../helpers/thaiDate');
 const GROUPS = {
   // payment-reconcile.spec.js (TS03)
   reconcile: { paid: 2, unpaid: 1 },
+  // payment-reconcile.spec.js (TS05-TC03, cancel a paid item)
+  cancelPaid: { paid: 1 },
 };
 
 test('upload EOD file and wait for the reconcile job', async ({ futureItemsApi, futureItemsPage }) => {
