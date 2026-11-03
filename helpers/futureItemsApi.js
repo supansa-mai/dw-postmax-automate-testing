@@ -4,6 +4,7 @@ const { buildHmacHeaders } = require('./hmac');
 const { randomThaiName, randomThaiPhone, randomEmail, randomThaiAddress, randomThaiPostalCode, randomWeight } = require('./testData');
 
 const PATH = '/v1/frontend/future-items';
+const MAX_ATTEMPTS_ON_429 = 10;
 
 class FutureItemsApi {
   /**
@@ -20,13 +21,22 @@ class FutureItemsApi {
     return buildHmacHeaders(credentials, 'POST', timestamp);
   }
 
-  /** Sends the payload; pass `headers` to override the signed headers entirely (replay, missing header, ...) */
-  async create(payload, { headers = this.signedHeaders() } = {}) {
-    return this.request.post(this.url, {
-      headers: { 'Content-Type': 'application/json', ...headers },
-      data: payload,
-      timeout: 120000,
-    });
+  /**
+   * Sends the payload; pass `headers` to override the signed headers entirely (replay, missing header, ...).
+   * The API is rate limited per huid (CPM-1768, ~60 req/min token bucket), so a 429 is resent after its
+   * Retry-After, re-signed unless `headers` was given; pass `retryOn429: false` to see the 429 itself
+   */
+  async create(payload, { headers, retryOn429 = true } = {}) {
+    for (let attempt = 1; ; attempt++) {
+      const response = await this.request.post(this.url, {
+        headers: { 'Content-Type': 'application/json', ...(headers ?? this.signedHeaders()) },
+        data: payload,
+        timeout: 120000,
+      });
+      if (response.status() !== 429 || !retryOn429 || attempt === MAX_ATTEMPTS_ON_429) return response;
+      const seconds = Number(response.headers()['retry-after']) || 1;
+      await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+    }
   }
 }
 
