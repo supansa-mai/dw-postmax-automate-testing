@@ -2,14 +2,14 @@
  * Create Future Items API — POST /v1/frontend/future-items
  * Spec: [PostMax] DLT Public API Document v0.3 (19/10/2026)
  * Test cases: sheet "User Portal_DLT" > SCENARIO 2 (TS02-*)
- * Jira: CPM-1758, CPM-1767, CPM-1769
+ * Jira: CPM-1758, CPM-1767, CPM-1769, CPM-1768 (rate limit)
  * Success returns 201 (doc/sheet say 200; agreed to follow the actual API)
  */
 const { randomInt } = require('crypto');
 const { test, expect } = require('../../fixtures');
 const { env, ENV_NAME } = require('../../config/environments');
 const { generateHmacSignature, nowUnix } = require('../../helpers/hmac');
-const { uniqueRefCodes, uniqueBatchRef, buildItem, buildPayload, omit } = require('../../helpers/futureItemsApi');
+const { FutureItemsApi, uniqueRefCodes, uniqueBatchRef, buildItem, buildPayload, omit } = require('../../helpers/futureItemsApi');
 const { expectSuccess, expectInvalidSignature, expectInvalidBody } = require('../../helpers/apiAssertions');
 
 const TRACKING_NUMBER = /^[A-Z]{2}\d{9}TH$/;
@@ -366,7 +366,64 @@ test.describe('Create Future Items API', () => {
     });
   });
 
+  // CPM-1768: token bucket per huid (dev: 10 tokens, +1/s), shared by every HMAC endpoint. The limit is not
+  // asserted as a number (bucket size still to be confirmed by PO / DLT) and UI tests may spend tokens of the same huid
   test.describe('TS02-TC11 rate limit', () => {
-    test.fixme('over the limit → 429 with Retry-After (On Hold, RR-31)', async () => {});
+    const MAX_REQUESTS = 100;
+    const sleep = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+
+    /** Sends 1-item requests one at a time, without retry, until the first 429; every earlier one must be 201 */
+    async function sendUntilLimited(api) {
+      let accepted = 0;
+      while (accepted < MAX_REQUESTS) {
+        const payload = buildPayload();
+        const response = await api.create(payload, { retryOn429: false });
+        if (response.status() === 429) return { accepted, limited: { payload, response } };
+        await expectSuccess(response);
+        accepted++;
+      }
+      throw new Error(`no 429 after ${MAX_REQUESTS} requests`);
+    }
+
+    test('requests up to the limit → 201, over it → 429 tooManyRequests + Retry-After, resent after Retry-After → 201', async ({ futureItemsApi }) => {
+      test.setTimeout(2 * 60 * 1000);
+      let limited;
+
+      await test.step('1. send requests until the limit → each one before the limit is 201', async () => {
+        // Let earlier tests' requests refill the bucket, so the burst starts from a (near) full bucket
+        await sleep(11);
+        let accepted;
+        ({ accepted, limited } = await sendUntilLimited(futureItemsApi));
+        expect(accepted).toBeGreaterThan(0);
+        test.info().annotations.push({ type: 'rate limit', description: `${accepted} requests accepted before the first 429` });
+      });
+
+      let retryAfter;
+      await test.step('2. one request over the limit → 429 tooManyRequests with Retry-After', async () => {
+        const body = await limited.response.json();
+        expect(body).toMatchObject({ success: false, key: 'tooManyRequests' });
+        retryAfter = Number(limited.response.headers()['retry-after']);
+        expect(retryAfter).toBeGreaterThanOrEqual(1);
+      });
+
+      await test.step('3. wait Retry-After and resend the same request → 201, created only now', async () => {
+        await sleep(retryAfter);
+
+        await expectNotCreated(futureItemsApi, limited.payload.items.map((i) => i.refCode));
+      });
+    });
+
+    test('limit is per huid: another DLT company still gets 201 while this huid gets 429', async ({ futureItemsApi, request }) => {
+      const { dltB } = env;
+      test.skip(!(dltB.huid && dltB.secretKey), 'DLT_B_HUID / DLT_B_SECRET_KEY (second DLT company) not set in .env');
+      const companyB = new FutureItemsApi(request, { apiURL: env.apiURL, dlt: dltB });
+
+      const { limited } = await sendUntilLimited(futureItemsApi);
+      expect((await limited.response.json()).key).toBe('tooManyRequests');
+
+      const payload = buildPayload();
+      const data = await expectSuccess(await companyB.create(payload, { retryOn429: false }));
+      expect(data.items.map((i) => i.refCode)).toEqual(payload.items.map((i) => i.refCode));
+    });
   });
 });
