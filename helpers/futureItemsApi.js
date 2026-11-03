@@ -64,9 +64,8 @@ function uniqueRefCodes(count) {
   return [...refCodes];
 }
 
-// 9 random digits starting with 9, e.g. 904359628, for items paid by the EOD reconcile job: it did not mark
-// letters + digits refCodes paid (03/11/2026). Starts with 9 so it never meets manual QA data (61000xxxx)
-// or eodFile's unknownRefCode() (8xxxxxxxx)
+// 9 random digits starting with 9, e.g. 904359628, for items paid by the EOD reconcile job: it matches the first
+// 9 characters of reference 1 and only when they are digits (confirmed by dev)
 function uniqueNumericRefCodes(count) {
   const refCodes = new Set();
   while (refCodes.size < count) refCodes.add(`9${String(randomInt(0, 1e8)).padStart(8, '0')}`);

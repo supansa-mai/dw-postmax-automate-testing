@@ -25,7 +25,7 @@ test('upload EOD file and wait for the reconcile job', async ({ futureItemsApi, 
 
   const groups = {};
   for (const [name, { paid, unpaid = 0 }] of Object.entries(GROUPS)) {
-    // 9-digit refCodes: the reconcile job did not mark letters + digits refCodes paid (03/11/2026)
+    // 9-digit refCodes: the reconcile job matches the first 9 characters of reference 1, digits only
     const { batchRef, items } = await createBatch(futureItemsApi, paid + unpaid, undefined, uniqueNumericRefCodes(paid + unpaid));
     // TS03-TC03 step 2: an item sent before the EOD file starts unpaid
     for (const item of items) expect(item.paymentStatus).toBe('UNPAID');
