@@ -30,10 +30,28 @@ class FutureItemsApi {
   }
 }
 
-// Automation refCodes start with 9 so they never clash with manual QA data (61000xxxx)
+const REF_CODE_LENGTH = 9;
+const DIGITS = '0123456789';
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+// Uppercase only, so the API's sort order matches JS .sort() in list tests
+function randomRefCode() {
+  const pick = (chars) => chars[randomInt(0, chars.length)];
+  const refCode = Array.from({ length: REF_CODE_LENGTH }, () => pick(DIGITS + LETTERS));
+  // Force at least one letter and one digit at two different positions; the letter also
+  // keeps automation data apart from manual QA data (61000xxxx, digits only)
+  const letterAt = randomInt(0, REF_CODE_LENGTH);
+  const digitAt = (letterAt + randomInt(1, REF_CODE_LENGTH)) % REF_CODE_LENGTH;
+  refCode[letterAt] = pick(LETTERS);
+  refCode[digitAt] = pick(DIGITS);
+  return refCode.join('');
+}
+
+// 9 random uppercase letters + digits, e.g. 4K7Q2M9XA
 function uniqueRefCodes(count) {
-  const start = randomInt(0, 1e8 - count);
-  return Array.from({ length: count }, (_, i) => `9${String(start + i).padStart(8, '0')}`);
+  const refCodes = new Set();
+  while (refCodes.size < count) refCodes.add(randomRefCode());
+  return [...refCodes];
 }
 
 // AUTO_ + 8 random digits, e.g. AUTO_04817263

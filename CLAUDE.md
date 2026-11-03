@@ -16,6 +16,7 @@ npm test                             # api + chromium + eod, ENV=dev (webkit onl
 npm run test:eod                     # only specs that need paid items (uploads an EOD file, waits ~5 min)
 npm run test:uat                     # target env: test:dev / test:uat / test:local
 npm run test:api                     # API project only (no browser)
+WORKERS=4 npm test                   # local default is 2 workers (CI: 1) so the shared dev DB pool isn't exhausted
 npx playwright test tests/api/create-future-items.spec.js -g "TS02-TC07"   # single file / test by title
 npm run test:uat -- --project=api -g "rate limit"                          # combine env + flags
 npm run report                       # open last HTML report
@@ -26,8 +27,9 @@ npm run report                       # open last HTML report
 - **Environment selection**: `config/environments.js` is the only place URLs live (`baseURL` for UI, `apiURL` for API). `ENV` picks the env (default `dev`). Secrets come from `.env` with an env-name prefix (`DEV_DLT_HUID`, `UAT_DLT_SECRET_KEY`, ...), and are exposed on the exported `env` object (`env.dlt`, `env.nonDlt`). A new secret means: add it to `.env.example`, read it in `environments.js`, and map it in `.github/workflows/playwright.yml` `env:` for CI.
 - **Playwright projects** (`playwright.config.js`): `api` runs only `tests/api/**` once with no browser; `chromium` runs everything else; `webkit` is opt-in via `WEBKIT=1` (nightly CI and `npm run test:webkit`); `eod` runs the specs in `EOD_SPECS` (those needing paid items, e.g. `payment-reconcile.spec.js`) after `eod-setup` (`tests/eod.setup.js`), which creates their items, uploads one bank EOD file to the dev S3 folder (`helpers/eodBucket.js`) and waits for the 5-minute reconcile job; specs read the items with `readEodItems()`. `baseURL` keeps the `/th` prefix via a trailing slash, so UI navigation uses relative paths without a leading slash (`goto('log-in')`).
 - **Fixtures** (`fixtures/index.js`): specs import `{ test, expect }` from `../../fixtures`, not from `@playwright/test`. Page objects (extending `pages/BasePage.js`) and API clients (`helpers/*Api.js`) are registered there and injected as fixtures, e.g. `futureItemsApi`.
+- **Where helpers live**: a function used by one spec stays at the top of that spec; once a second spec needs it, move it (UI actions → page object, e.g. `LoginPage.loginAs()`; API envelope checks → `helpers/apiAssertions.js`; future-items data setup → `helpers/futureItemsApi.js`).
 - **Public API auth** (`helpers/hmac.js`): `x-signature = hex(HMAC-SHA256(base64-decode(secretKey), METHOD + unixTimestamp))` with `x-huid` / `x-timestamp` headers. API clients sign by default; pass `{ headers }` to `create()` to fully override (negative auth tests).
-- **Test data** (`helpers/testData.js`, `helpers/futureItemsApi.js`): random Thai names, phones, real postal codes, etc. Automation `refCode`s are 9 digits starting with `9` (manual QA data uses `61000xxxx`) and `batchRef`s start with `AUTO_`, so runs never collide with each other or with manual data. Always generate them with `uniqueRefCodes()` / `uniqueBatchRef()`.
+- **Test data** (`helpers/testData.js`, `helpers/futureItemsApi.js`): random Thai names, phones, real postal codes, etc. Automation `refCode`s are 9 random uppercase letters + digits with at least one of each (manual QA data is digits only, `61000xxxx`); the API accepts any string since CPM-1816. `batchRef`s start with `AUTO_`. Together this means runs never collide with each other or with manual data. Always generate them with `uniqueRefCodes()` / `uniqueBatchRef()`.
 
 ## Writing API specs
 

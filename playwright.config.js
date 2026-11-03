@@ -16,7 +16,8 @@ module.exports = defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Every env shares one backend and DB connection pool, so keep concurrency low; override with WORKERS=n
+  workers: process.env.CI ? 1 : Number(process.env.WORKERS) || 2,
   reporter: [['html', { open: 'never' }], ['list']],
   use: {
     // Trailing slash keeps the /th prefix; use relative paths without a leading slash, e.g. goto('log-in')

@@ -36,14 +36,6 @@ function unpaidCount(items) {
   return items.filter((i) => i.paymentStatus === 'UNPAID').length;
 }
 
-/** Logs in with another account; use with an empty storageState so the saved DLT session is not reused */
-async function loginAs(loginPage, account, label) {
-  expect(account.email && account.password, `${label} not set in .env`).toBeTruthy();
-  await loginPage.goto();
-  await loginPage.login(account);
-  await expect(loginPage.page).not.toHaveURL(/log-in/);
-}
-
 // Polls because the old rows stay on screen until the request for the new filter returns
 async function expectRows(futureItemsPage, items) {
   const byId = (a, b) => a - b;
@@ -72,12 +64,12 @@ test.describe('Future Items list (DLT)', () => {
     test.use({ storageState: { cookies: [], origins: [] } });
 
     test('ผู้ใช้งานทั่วไป ไม่เห็นเมนู DLT และเมนูอื่นแสดงตามเดิม', async ({ basePage, loginPage }) => {
-      await loginAs(loginPage, env.normalUser, 'NORMAL_USER_EMAIL / NORMAL_USER_PASSWORD');
+      await loginPage.loginAs(env.normalUser, 'NORMAL_USER_EMAIL / NORMAL_USER_PASSWORD');
       await expect(basePage.menuLinks).toHaveText(NON_DLT_MENU);
     });
 
     test('ผู้ใช้งาน TSD ไม่เห็นเมนู DLT และเมนูของ TSD แสดงตามเดิม', async ({ basePage, loginPage }) => {
-      await loginAs(loginPage, env.tsdUser, 'TSD_USER_EMAIL / TSD_USER_PASSWORD');
+      await loginPage.loginAs(env.tsdUser, 'TSD_USER_EMAIL / TSD_USER_PASSWORD');
       await expect(basePage.menuLinks).toHaveText([...NON_DLT_MENU, 'รายงานประจำเดือน']);
     });
   });

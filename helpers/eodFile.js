@@ -74,7 +74,7 @@ function buildEodFile({ runningNo, companyAccount, payments, date = new Date() }
   return toTis620(lines.map((line) => `${line}\r\n`).join(''));
 }
 
-// Reference that matches no future item: automation refCodes start with 9, manual QA data with 61000
+// Reference that matches no future item: digits only (automation refCodes always contain a letter) and not 61000xxxx (manual QA data)
 function unknownRefCode() {
   return `8${String(randomInt(0, 1e8)).padStart(8, '0')}`;
 }

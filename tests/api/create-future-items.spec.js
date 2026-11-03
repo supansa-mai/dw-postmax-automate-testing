@@ -5,36 +5,16 @@
  * Jira: CPM-1758, CPM-1767, CPM-1769
  * Success returns 201 (doc/sheet say 200; agreed to follow the actual API)
  */
+const { randomInt } = require('crypto');
 const { test, expect } = require('../../fixtures');
 const { env, ENV_NAME } = require('../../config/environments');
 const { generateHmacSignature, nowUnix } = require('../../helpers/hmac');
 const { uniqueRefCodes, uniqueBatchRef, buildItem, buildPayload, omit } = require('../../helpers/futureItemsApi');
+const { expectSuccess, expectInvalidSignature, expectInvalidBody } = require('../../helpers/apiAssertions');
 
 const TRACKING_NUMBER = /^[A-Z]{2}\d{9}TH$/;
 const DUPLICATE_IN_PAYLOAD = 'Duplicate within request payload';
 const ALREADY_EXISTS = 'Already exists in database';
-
-async function expectSuccess(response) {
-  expect(response.status()).toBe(201);
-  const body = await response.json();
-  expect(body.success).toBe(true);
-  return body.data;
-}
-
-async function expectInvalidSignature(response) {
-  expect(response.status()).toBe(401);
-  const body = await response.json();
-  expect(body.success).toBe(false);
-  expect(body.key).toBe('invalidSignature');
-}
-
-async function expectInvalidBody(response) {
-  expect(response.status()).toBe(400);
-  const body = await response.json();
-  expect(body.success).toBe(false);
-  expect(body.key).toBe('invalidRequestBody');
-  return body.error.fields;
-}
 
 function expectCreatedItem(item, refCode) {
   expect(item).toMatchObject({
@@ -113,12 +93,36 @@ test.describe('Create Future Items API', () => {
       await expectNotCreated(futureItemsApi, refCodes);
     });
 
-    test('x-timestamp 6 minutes old → 401', async ({ futureItemsApi }) => {
-      // Server accepts up to ~359s (doc says 5 min); test 6 min + 5s buffer for clock skew
-      const headers = futureItemsApi.signedHeaders({ timestamp: nowUnix() - (6 * 60 + 5) });
+    // CPM-1812: x-timestamp must be within ±5 minutes of server time, in either direction
+    test('x-timestamp older than 5 minutes → 401', async ({ futureItemsApi }) => {
+      const headers = futureItemsApi.signedHeaders({ timestamp: nowUnix() - (5 * 60 + 5) });
 
       await expectInvalidSignature(await futureItemsApi.create(buildPayload(), { headers }));
     });
+
+    for (const { label, seconds } of [
+      { label: '1 hour', seconds: 60 * 60 },
+      { label: '1 day', seconds: 24 * 60 * 60 },
+    ]) {
+      test(`x-timestamp in the future (+${label}) → 401 and nothing is created`, async ({ futureItemsApi }) => {
+        const refCodes = uniqueRefCodes(1);
+        const headers = futureItemsApi.signedHeaders({ timestamp: nowUnix() + seconds });
+
+        await expectInvalidSignature(await futureItemsApi.create(buildPayload({ refCodes }), { headers }));
+        await expectNotCreated(futureItemsApi, refCodes);
+      });
+    }
+
+    for (const offset of [-4 * 60, 4 * 60]) {
+      test(`x-timestamp within ±5 minutes (${offset > 0 ? '+' : ''}${offset / 60} min) → 201`, async ({ futureItemsApi }) => {
+        const refCodes = uniqueRefCodes(1);
+        const headers = futureItemsApi.signedHeaders({ timestamp: nowUnix() + offset });
+
+        const data = await expectSuccess(await futureItemsApi.create(buildPayload({ refCodes }), { headers }));
+
+        expectCreatedItem(data.items[0], refCodes[0]);
+      });
+    }
 
     for (const header of ['x-huid', 'x-timestamp', 'x-signature']) {
       test(`missing ${header} → 401`, async ({ futureItemsApi }) => {
@@ -217,10 +221,8 @@ test.describe('Create Future Items API', () => {
       { field: 'weight', value: '0', message: 'weight must be greater than 0' },
       { field: 'weight', value: '-1', message: 'weight must be greater than 0' },
       { field: 'weight', value: 'abc' },
-      { field: 'refCode', value: '61000241', message: 'refCode must be 9 digits' },
-      { field: 'refCode', value: '6100024155', message: 'refCode must be 9 digits' },
-      { field: 'refCode', value: 'REF_A1', message: 'refCode must be 9 digits' },
-      { field: 'refCode', value: 'ref_a1', message: 'refCode must be 9 digits' },
+      { field: 'refCode', value: 123456789, message: 'Expected string, received number' },
+      { field: 'refCode', value: null, message: 'Expected string, received null' },
     ];
 
     for (const { field, value, message } of cases) {
@@ -230,6 +232,23 @@ test.describe('Create Future Items API', () => {
         const fields = await expectInvalidBody(await futureItemsApi.create(payload));
 
         if (message) expect(fields.items?.['0']?.[field]).toContain(message);
+      });
+    }
+
+    const randomDigits = (length) => Array.from({ length }, () => randomInt(0, 10)).join('');
+
+    for (const { label, newRefCode } of [
+      { label: '8 digits', newRefCode: () => randomDigits(8) },
+      { label: '10 digits', newRefCode: () => randomDigits(10) },
+      { label: 'letters and symbols', newRefCode: () => `AUTO-REF_${uniqueRefCodes(1)[0]}` },
+    ]) {
+      test(`refCode as any string (${label}) → 201`, async ({ futureItemsApi }) => {
+        const refCode = newRefCode();
+        const item = buildItem({ refCode });
+
+        const data = await expectSuccess(await futureItemsApi.create({ batchRef: uniqueBatchRef(), items: [item] }));
+
+        expectCreatedItem(data.items[0], refCode);
       });
     }
   });
