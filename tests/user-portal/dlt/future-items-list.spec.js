@@ -2,24 +2,17 @@
  * รายการพัสดุล่วงหน้า (DLT) — User Portal /th/future-items
  * Test cases: sheet "User Portal_DLT" > SCENARIO 1 (TS01-*) menu access by DLT flag (UI only),
  *   SCENARIO 4 (TS04-*) list, SCENARIO 5 (TS05-*) cancel
- * Jira: CPM-1756, CPM-1792 (sorting)
- * Figma: "Future Items (DLT)" > Search&Filter / Future List, ลบรายการ
- *
- * Each test creates its own batch through the Create Future Items API and filters the list by
- * today + that batch, so card counts and rows only come from data the test created.
- * Not covered here: TS01-TC03 step 4 (DLT APIs with a non-DLT token) belongs to the API specs;
- * TS01-TC04 (items of another DLT company) needs a second DLT company account; TS05-TC01 step 6 (scan a cancelled item) and TS05-TC04 (cancelled while
+ * TS01-TC04 step 3 (scan company B's tracking number) belongs to the scan / create shipment specs; TS05-TC01 step 6 (scan a cancelled item) and TS05-TC04 (cancelled while
  * scanned by another user, CPM-1805) belong to the scan / create shipment specs
  */
 const { test, expect } = require('../../../fixtures');
 const { env } = require('../../../config/environments');
-const { FutureItemsApi, createBatch } = require('../../../helpers/futureItemsApi');
+const { FutureItemsApi, createBatch, uniqueBatchRef } = require('../../../helpers/futureItemsApi');
 const { thaiDate, thaiDateTime, daysFromNow } = require('../../../helpers/thaiDate');
 
 const TODAY = thaiDate();
 const STATUS = { PENDING: 'รอสร้างใบนำส่ง', CONVERTED: 'สร้างใบนำส่งแล้ว', CANCELLED: 'ยกเลิก' };
 const PAYMENT = { PAID: 'ชำระเงินแล้ว', UNPAID: 'ยังไม่ชำระเงิน' };
-// Top menu of a DLT user; the sheet says "หน้าแรก", the portal shows "หน้าหลัก"
 const DLT_MENU = 'รายการพัสดุล่วงหน้า (DLT)';
 const MENU = ['หน้าหลัก', 'เตรียมการฝากส่ง', DLT_MENU, 'การฝากส่งของฉัน', 'รายงานข้อมูล'];
 const NON_DLT_MENU = MENU.filter((name) => name !== DLT_MENU);
@@ -75,8 +68,69 @@ test.describe('Future Items list (DLT)', () => {
   });
 
   test.describe('TS01-TC03 ผู้ใช้งานที่ไม่มี flag DLT เข้าหน้า DLT ผ่าน URL โดยตรงไม่ได้', () => {
-    // Today normal and TSD users can still open /future-items directly
-    test.fixme('เปิด URL หน้ารายการ / หน้าสร้างใบนำส่ง (DLT) โดยตรงไม่ได้ (On Hold)', async () => {});
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    for (const { label, account, envKeys } of [
+      { label: 'ผู้ใช้งานทั่วไป', account: env.normalUser, envKeys: 'NORMAL_USER_EMAIL / NORMAL_USER_PASSWORD' },
+      { label: 'ผู้ใช้งาน TSD', account: env.tsdUser, envKeys: 'TSD_USER_EMAIL / TSD_USER_PASSWORD' },
+    ]) {
+      test(`${label} เปิด URL หน้ารายการ / หน้าสร้างใบนำส่ง (DLT) แล้วเจอหน้าไม่สามารถเข้าถึง และกดกลับสู่หน้าหลักได้`, async ({ basePage, loginPage, futureItemsPage, page }) => {
+        await loginPage.loginAs(account, envKeys);
+
+        for (const path of ['future-items', 'future-items/create']) {
+          await test.step(path, async () => {
+            await basePage.goto(path);
+            await expect(basePage.accessDeniedTitle).toBeVisible();
+            await expect(basePage.accessDeniedMessage).toBeVisible();
+            await expect(futureItemsPage.title).toBeHidden();
+
+            await basePage.backToHomeButton.click();
+            await expect(page).toHaveURL(/\/th\/?$/);
+            await expect(basePage.accessDeniedTitle).toBeHidden();
+          });
+        }
+      });
+    }
+  });
+
+  test.describe('TS01-TC04 ผู้ใช้งาน DLT เห็นเฉพาะรายการพัสดุล่วงหน้าของบริษัทตนเอง', () => {
+    const { dltB } = env;
+    test.skip(!(dltB.huid && dltB.secretKey && dltB.user.email && dltB.user.password),
+      'DLT_B_* (second DLT company) not set in .env');
+
+    let batchRef;
+    let itemsA;
+    let itemsB;
+
+    test.beforeAll(async ({ playwright }) => {
+      const request = await playwright.request.newContext();
+      batchRef = uniqueBatchRef();
+      // Different sizes, so the summary cards also show a leak
+      ({ items: itemsA } = await createBatch(new FutureItemsApi(request, env), 2, batchRef));
+      ({ items: itemsB } = await createBatch(new FutureItemsApi(request, { apiURL: env.apiURL, dlt: dltB }), 3, batchRef));
+      await request.dispose();
+    });
+
+    test('บริษัท A เห็นเฉพาะรายการและตัวเลขสรุปของบริษัท A', async ({ futureItemsPage }) => {
+      await futureItemsPage.openBatch(batchRef, TODAY);
+      await expectRows(futureItemsPage, itemsA);
+      await expect(futureItemsPage.summaryCount('all')).toHaveText(String(itemsA.length));
+      await expect(futureItemsPage.summaryCount('pending')).toHaveText(String(itemsA.length));
+      await expect(futureItemsPage.summaryCount('unpaid')).toHaveText(String(unpaidCount(itemsA)));
+    });
+
+    test.describe('บริษัท B', () => {
+      test.use({ storageState: { cookies: [], origins: [] } });
+
+      test('บริษัท B เห็นเฉพาะรายการและตัวเลขสรุปของบริษัท B', async ({ loginPage, futureItemsPage }) => {
+        await loginPage.loginAs(dltB.user, 'DLT_B_USER_EMAIL / DLT_B_USER_PASSWORD');
+        await futureItemsPage.openBatch(batchRef, TODAY);
+        await expectRows(futureItemsPage, itemsB);
+        await expect(futureItemsPage.summaryCount('all')).toHaveText(String(itemsB.length));
+        await expect(futureItemsPage.summaryCount('pending')).toHaveText(String(itemsB.length));
+        await expect(futureItemsPage.summaryCount('unpaid')).toHaveText(String(unpaidCount(itemsB)));
+      });
+    });
   });
 
   test.describe('TS04-TC01 ผู้ใช้งาน DLT เห็นหน้า "รายการพัสดุล่วงหน้า (DLT)" - Default', () => {
@@ -165,8 +219,6 @@ test.describe('Future Items list (DLT)', () => {
       await expect(futureItemsPage.calendarDay(15)).toBeDisabled();
       await expect(futureItemsPage.nextMonthButton).toBeDisabled();
     });
-
-    // Last selectable end date = start + 1 calendar month - 1 day, so 01/04 cannot be picked
     test('ช่วงวันที่ขอบ 1 เดือน: เริ่ม 01/03/2569 เลือกวันสิ้นสุดได้ถึง 31/03/2569', async ({ futureItemsPage }) => {
       await futureItemsPage.startDate.fill('01/03/2569');
       await futureItemsPage.openCalendar('end');
@@ -408,7 +460,6 @@ test.describe('Future Items list (DLT)', () => {
       await expect(futureItemsPage.cell(item.id, 'status')).toHaveText(STATUS.CANCELLED);
       await expect(futureItemsPage.cell(item.id, 'status').getByTestId('chip')).toHaveClass(/MuiChip-colorDefault/);
       await expect(futureItemsPage.cell(item.id, 'paymentStatus')).toHaveText(PAYMENT[item.paymentStatus]);
-      // TS05-TC02: a cancelled item cannot be cancelled again
       await expect(futureItemsPage.cancelButton(item.id)).toBeDisabled();
 
       await expect(futureItemsPage.summaryCount('pending')).toHaveText('1');

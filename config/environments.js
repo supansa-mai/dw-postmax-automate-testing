@@ -60,6 +60,15 @@ const env = {
     password: process.env[`${prefix}_TSD_USER_PASSWORD`],
   },
   dlt: dltCredentialsOf(ENV_NAME),
+  // Optional second DLT company (company B): checks that each company sees only its own items (TS01-TC04)
+  dltB: {
+    user: {
+      email: process.env[`${prefix}_DLT_B_USER_EMAIL`],
+      password: process.env[`${prefix}_DLT_B_USER_PASSWORD`],
+    },
+    huid: process.env[`${prefix}_DLT_B_HUID`],
+    secretKey: process.env[`${prefix}_DLT_B_SECRET_KEY`],
+  },
   // S3 folder of the bank EOD files read by the payment reconcile job (tests/user-portal/dlt/payment-reconcile.spec.js)
   eod: {
     region: process.env[`${prefix}_EOD_S3_REGION`],

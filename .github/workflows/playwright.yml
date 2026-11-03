@@ -57,6 +57,14 @@ jobs:
           DEV_DLT_SECRET_KEY: ${{ secrets.DEV_DLT_SECRET_KEY }}
           UAT_DLT_HUID: ${{ secrets.UAT_DLT_HUID }}
           UAT_DLT_SECRET_KEY: ${{ secrets.UAT_DLT_SECRET_KEY }}
+          DEV_DLT_B_USER_EMAIL: ${{ secrets.DEV_DLT_B_USER_EMAIL }}
+          DEV_DLT_B_USER_PASSWORD: ${{ secrets.DEV_DLT_B_USER_PASSWORD }}
+          DEV_DLT_B_HUID: ${{ secrets.DEV_DLT_B_HUID }}
+          DEV_DLT_B_SECRET_KEY: ${{ secrets.DEV_DLT_B_SECRET_KEY }}
+          UAT_DLT_B_USER_EMAIL: ${{ secrets.UAT_DLT_B_USER_EMAIL }}
+          UAT_DLT_B_USER_PASSWORD: ${{ secrets.UAT_DLT_B_USER_PASSWORD }}
+          UAT_DLT_B_HUID: ${{ secrets.UAT_DLT_B_HUID }}
+          UAT_DLT_B_SECRET_KEY: ${{ secrets.UAT_DLT_B_SECRET_KEY }}
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:

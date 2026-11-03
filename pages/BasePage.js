@@ -4,6 +4,12 @@ class BasePage {
     this.page = page;
     // Top menu of the User Portal; the logo link has no text
     this.menuLinks = page.getByRole('banner').getByRole('link').filter({ hasText: /\S/ });
+
+    // Shown in place of a page the user's company flag (DLT / TSD) does not allow, e.g. opened by URL
+    this.accessDeniedTitle = page.getByText('ไม่สามารถเข้าถึงหน้านี้ได้', { exact: true });
+    this.accessDeniedMessage = page.getByText('เนื้อหาที่คุณต้องการอาจถูกย้าย ลบออก หรือจำกัดสิทธิ์การเข้าถึง');
+    this.backToHomeButton = page.getByRole('button', { name: 'กลับสู่หน้าหลัก' })
+      .or(page.getByRole('link', { name: 'กลับสู่หน้าหลัก' }));
   }
 
   async goto(path = '') {
