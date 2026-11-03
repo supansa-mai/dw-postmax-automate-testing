@@ -1,7 +1,7 @@
 const { S3Client, ListObjectsV2Command, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { buildEodFile } = require('./eodFile');
 
-// Running number of the first file of a day, as in the sample from the bank
+// Running number of the first file in an empty folder, as in the sample from the bank
 const FIRST_RUNNING_NO = 27743;
 
 function yyyymmdd(date) {
@@ -9,8 +9,8 @@ function yyyymmdd(date) {
 }
 
 /**
- * S3 folder the payment reconcile job reads EOD files from. Files are named `<5-digit running no.>_<YYYYMMDD>.txt`;
- * a second file on the same day continues the running number. The job only processes the latest uploaded file.
+ * S3 folder the payment reconcile job reads EOD files from. Files are named `<running no.>_<YYYYMMDD>.txt`;
+ * the running number has no fixed length and goes on across days, it only has to be unique. The job only processes the latest uploaded file.
  */
 class EodBucket {
   /** @param {{ region: string, bucket: string, prefix: string, accessKeyId: string, secretAccessKey: string }} config */
@@ -33,10 +33,9 @@ class EodBucket {
     return names;
   }
 
-  /** Next running number of `date`, so an upload never overwrites a file of the same day */
-  async nextRunningNo(date) {
-    const pattern = new RegExp(`^(\\d{5})_${yyyymmdd(date)}\\.txt$`);
-    const used = (await this.fileNames()).map((name) => name.match(pattern)?.[1]).filter(Boolean).map(Number);
+  /** Highest running number in the folder (any day) + 1, so an upload never overwrites a file */
+  async nextRunningNo() {
+    const used = (await this.fileNames()).map((name) => name.match(/^(\d+)_\d{8}\.txt$/)?.[1]).filter(Boolean).map(Number);
     return used.length ? Math.max(...used) + 1 : FIRST_RUNNING_NO;
   }
 
@@ -46,7 +45,7 @@ class EodBucket {
    * @returns {Promise<string>} the uploaded file name
    */
   async upload({ companyAccount, payments, date = new Date() }) {
-    const runningNo = await this.nextRunningNo(date);
+    const runningNo = await this.nextRunningNo();
     const name = `${runningNo}_${yyyymmdd(date)}.txt`;
     await this.client.send(new PutObjectCommand({
       Bucket: this.bucket,

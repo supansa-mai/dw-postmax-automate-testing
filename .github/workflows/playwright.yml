@@ -53,6 +53,12 @@ jobs:
           DEV_EOD_S3_ACCESS_KEY_ID: ${{ secrets.DEV_EOD_S3_ACCESS_KEY_ID }}
           DEV_EOD_S3_SECRET_ACCESS_KEY: ${{ secrets.DEV_EOD_S3_SECRET_ACCESS_KEY }}
           DEV_EOD_COMPANY_ACCOUNT: ${{ secrets.DEV_EOD_COMPANY_ACCOUNT }}
+          UAT_EOD_S3_REGION: ${{ secrets.UAT_EOD_S3_REGION }}
+          UAT_EOD_S3_BUCKET: ${{ secrets.UAT_EOD_S3_BUCKET }}
+          UAT_EOD_S3_PREFIX: ${{ secrets.UAT_EOD_S3_PREFIX }}
+          UAT_EOD_S3_ACCESS_KEY_ID: ${{ secrets.UAT_EOD_S3_ACCESS_KEY_ID }}
+          UAT_EOD_S3_SECRET_ACCESS_KEY: ${{ secrets.UAT_EOD_S3_SECRET_ACCESS_KEY }}
+          UAT_EOD_COMPANY_ACCOUNT: ${{ secrets.UAT_EOD_COMPANY_ACCOUNT }}
           DEV_DLT_HUID: ${{ secrets.DEV_DLT_HUID }}
           DEV_DLT_SECRET_KEY: ${{ secrets.DEV_DLT_SECRET_KEY }}
           UAT_DLT_HUID: ${{ secrets.UAT_DLT_HUID }}
