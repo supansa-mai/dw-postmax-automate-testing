@@ -64,6 +64,15 @@ function uniqueRefCodes(count) {
   return [...refCodes];
 }
 
+// 9 random digits starting with 9, e.g. 904359628, for items paid by the EOD reconcile job: it did not mark
+// letters + digits refCodes paid (03/11/2026). Starts with 9 so it never meets manual QA data (61000xxxx)
+// or eodFile's unknownRefCode() (8xxxxxxxx)
+function uniqueNumericRefCodes(count) {
+  const refCodes = new Set();
+  while (refCodes.size < count) refCodes.add(`9${String(randomInt(0, 1e8)).padStart(8, '0')}`);
+  return [...refCodes];
+}
+
 // AUTO_ + 8 random digits, e.g. AUTO_04817263
 function uniqueBatchRef() {
   return `AUTO_${String(randomInt(0, 1e8)).padStart(8, '0')}`;
@@ -86,9 +95,12 @@ function buildPayload({ refCodes = uniqueRefCodes(1), batchRef = uniqueBatchRef(
   return { batchRef, items: refCodes.map((refCode) => buildItem({ ...itemOverrides, refCode })) };
 }
 
-/** Creates `count` future items in one batch; returns them with id / trackingNumber / paymentStatus */
-async function createBatch(api, count, batchRef) {
-  const payload = buildPayload({ refCodes: uniqueRefCodes(count), ...(batchRef && { batchRef }) });
+/**
+ * Creates `count` future items in one batch; returns them with id / trackingNumber / paymentStatus.
+ * Pass `refCodes` (e.g. uniqueNumericRefCodes for EOD items) to choose them, otherwise they are letters + digits
+ */
+async function createBatch(api, count, batchRef, refCodes = uniqueRefCodes(count)) {
+  const payload = buildPayload({ refCodes, ...(batchRef && { batchRef }) });
   const response = await api.create(payload);
   expect(response.status(), await response.text()).toBe(201);
   const { data } = await response.json();
@@ -101,4 +113,4 @@ function omit(obj, key) {
   return rest;
 }
 
-module.exports = { FutureItemsApi, uniqueRefCodes, uniqueBatchRef, buildItem, buildPayload, createBatch, omit };
+module.exports = { FutureItemsApi, uniqueRefCodes, uniqueNumericRefCodes, uniqueBatchRef, buildItem, buildPayload, createBatch, omit };

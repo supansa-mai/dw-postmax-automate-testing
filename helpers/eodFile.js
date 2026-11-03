@@ -29,6 +29,14 @@ function number(value, width) {
   return text(String(value).padStart(width, '0'), width);
 }
 
+const ALPHANUMERIC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+// The bank fills reference 1 to its 20 characters: the refCode, then random letters + digits (e.g. 922220387MPTXKL70AHM)
+function reference(refCode, width) {
+  const suffix = Array.from({ length: Math.max(width - refCode.length, 0) }, () => ALPHANUMERIC[randomInt(0, ALPHANUMERIC.length)]);
+  return text(refCode + suffix.join(''), width);
+}
+
 function record(fields) {
   return fields.join('').padEnd(RECORD_LENGTH, ' ');
 }
@@ -62,7 +70,7 @@ function buildEodFile({ runningNo, companyAccount, payments, date = new Date() }
     // 145–152 branch / teller, 153 C = credit, 154–156 transaction code, 157–163 cheque no., 164–176 amount,
     // 177–179 cheque bank, 244–256 copied from the sample file
     lines.push(record(['D', sequence(), BANK_CODE, number(companyAccount, 10), postDate, time,
-      text(randomThaiName(), 50), text(refCode, 20), text('', 20), text('', 20), '0000', '0000', 'C', 'NET',
+      text(randomThaiName(), 50), reference(refCode, 20), text('', 20), text('', 20), '0000', '0000', 'C', 'NET',
       number(0, 7), number(amount, 13), '000', text('', 64), '0040000000000']));
   }
 
@@ -74,7 +82,7 @@ function buildEodFile({ runningNo, companyAccount, payments, date = new Date() }
   return toTis620(lines.map((line) => `${line}\r\n`).join(''));
 }
 
-// Reference that matches no future item: digits only (automation refCodes always contain a letter) and not 61000xxxx (manual QA data)
+// Reference that matches no future item: 8xxxxxxxx, apart from EOD items (9xxxxxxxx) and manual QA data (61000xxxx)
 function unknownRefCode() {
   return `8${String(randomInt(0, 1e8)).padStart(8, '0')}`;
 }

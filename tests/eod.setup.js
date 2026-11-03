@@ -3,7 +3,7 @@
 // The job only processes the latest uploaded file, so don't upload EOD files by hand while this runs.
 const { test, expect } = require('../fixtures');
 const { env } = require('../config/environments');
-const { createBatch, uniqueRefCodes } = require('../helpers/futureItemsApi');
+const { createBatch, uniqueNumericRefCodes } = require('../helpers/futureItemsApi');
 const { EodBucket } = require('../helpers/eodBucket');
 const { unknownRefCode } = require('../helpers/eodFile');
 const { saveEodItems } = require('../helpers/eodItems');
@@ -25,13 +25,14 @@ test('upload EOD file and wait for the reconcile job', async ({ futureItemsApi, 
 
   const groups = {};
   for (const [name, { paid, unpaid = 0 }] of Object.entries(GROUPS)) {
-    const { batchRef, items } = await createBatch(futureItemsApi, paid + unpaid);
+    // 9-digit refCodes: the reconcile job did not mark letters + digits refCodes paid (03/11/2026)
+    const { batchRef, items } = await createBatch(futureItemsApi, paid + unpaid, undefined, uniqueNumericRefCodes(paid + unpaid));
     // TS03-TC03 step 2: an item sent before the EOD file starts unpaid
     for (const item of items) expect(item.paymentStatus).toBe('UNPAID');
     groups[name] = { batchRef, paid: items.slice(0, paid), unpaid: items.slice(paid) };
   }
   // TS03-TC03 step 1: paid before its future item is sent
-  const [earlyRefCode] = uniqueRefCodes(1);
+  const [earlyRefCode] = uniqueNumericRefCodes(1);
 
   const fileName = await new EodBucket(eod).upload({
     companyAccount: eod.companyAccount,
