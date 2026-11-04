@@ -1,9 +1,3 @@
-/**
- * สร้างใบนำส่งจากรายการพัสดุล่วงหน้า (DLT) — User Portal /th/future-items/create
- * Test cases: sheet "User Portal_DLT" > SCENARIO 6 (TS06-*) scan / import, SCENARIO 7 (TS07-*) remove scanned items,
- *   SCENARIO 8 (TS08-*) create the order, SCENARIO 5 TS05-TC04 (cancelled while scanned in another browser)
- *   and SCENARIO 1 TS01-TC04 step 3 (tracking number of another DLT company)
- */
 const { test, expect } = require('../../../fixtures');
 const { env } = require('../../../config/environments');
 const { USER_STATE } = require('../../../config/auth');
@@ -163,6 +157,15 @@ test.describe('Create order from future items (DLT)', () => {
       await p.scan(item.trackingNumber);
       await expect(p.dialog('พัสดุนี้ถูกสร้างใบนำส่งแล้ว')).toContainText(SCAN_ANOTHER);
       await expect(p.total).toHaveText('ทั้งหมด 0 รายการ');
+    });
+  });
+
+  test.describe('TS05-TC02 ยกเลิกไม่ได้เมื่อสร้างใบนำส่งแล้ว', () => {
+    test('ปุ่ม "× ยกเลิก" disable เมื่อสถานะ "สร้างใบนำส่งแล้ว"', async ({ futureItemsPage }) => {
+      const { batchRef, paid: [item] } = groups.ordered;
+      await futureItemsPage.openBatch(batchRef, TODAY);
+      await expect(futureItemsPage.cell(item.id, 'status')).toHaveText('สร้างใบนำส่งแล้ว');
+      await expect(futureItemsPage.cancelButton(item.id)).toBeDisabled();
     });
   });
 

@@ -1,10 +1,3 @@
-/**
- * Create Future Items API — POST /v1/frontend/future-items
- * Spec: [PostMax] DLT Public API Document v0.3 (19/10/2026)
- * Test cases: sheet "User Portal_DLT" > SCENARIO 2 (TS02-*)
- * Jira: CPM-1758, CPM-1767, CPM-1769, CPM-1768 (rate limit)
- * Success returns 201 (doc/sheet say 200; agreed to follow the actual API)
- */
 const { randomInt } = require('crypto');
 const { test, expect } = require('../../fixtures');
 const { env, ENV_NAME } = require('../../config/environments');
@@ -269,8 +262,6 @@ test.describe('Create Future Items API', () => {
       // One refCode from the rejected batch is enough to show it was not saved
       await expectNotCreated(futureItemsApi, refCodes.slice(0, 1));
     });
-
-    test.fixme('5,000–10,000 items/day performance (On Hold, RR-15)', async () => {});
   });
 
   test.describe('TS02-TC07 refCode duplicated within the request', () => {

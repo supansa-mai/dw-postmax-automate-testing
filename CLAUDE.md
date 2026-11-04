@@ -34,7 +34,6 @@ npm run report                       # open last HTML report
 ## Writing API specs
 
 Follow `tests/api/create-future-items.spec.js`:
-- File header lists the endpoint, API doc version, test-case sheet/scenario, and Jira tickets.
 - `test.describe` blocks are named after the test-case IDs in the QA sheet (`TS02-TC03 ...`).
 - Missing credentials: a suite's required secrets (the DLT key pair, `USER_*` for UI via `tests/auth.setup.js`) fail the run with a clear message, so a run without them never looks green. Only optional extras (e.g. `NON_DLT_*`, another env's DLT key) `test.skip()` with the reason.
 - Cases that are On Hold use `test.fixme('... (On Hold, <ticket>)', async () => {})` so they stay visible in the report.

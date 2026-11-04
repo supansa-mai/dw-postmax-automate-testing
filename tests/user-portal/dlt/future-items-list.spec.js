@@ -1,10 +1,3 @@
-/**
- * รายการพัสดุล่วงหน้า (DLT) — User Portal /th/future-items
- * Test cases: sheet "User Portal_DLT" > SCENARIO 1 (TS01-*) menu access by DLT flag (UI only),
- *   SCENARIO 4 (TS04-*) list, SCENARIO 5 (TS05-*) cancel
- * TS01-TC04 step 3 (scan company B's tracking number) belongs to the scan / create shipment specs; TS05-TC01 step 6 (scan a cancelled item) and TS05-TC04 (cancelled while
- * scanned by another user, CPM-1805) belong to the scan / create shipment specs
- */
 const { test, expect } = require('../../../fixtures');
 const { env } = require('../../../config/environments');
 const { FutureItemsApi, createBatch, uniqueBatchRef } = require('../../../helpers/futureItemsApi');
@@ -468,9 +461,5 @@ test.describe('Future Items list (DLT)', () => {
       await futureItemsPage.selectOption(futureItemsPage.statusFilter, STATUS.CANCELLED);
       await expectRows(futureItemsPage, [item]);
     });
-  });
-
-  test.describe('TS05-TC02 ยกเลิกไม่ได้เมื่อสร้างใบนำส่งแล้ว', () => {
-    test.fixme('ปุ่ม "× ยกเลิก" disable เมื่อสถานะ "สร้างใบนำส่งแล้ว" (needs the create shipment flow, TS08)', async () => {});
   });
 });
