@@ -84,8 +84,8 @@ test.describe('Payment reconcile (EOD file)', () => {
       await expect(futureItemsPage.cell(item.id, 'paymentStatus')).toHaveText(PAID);
       await expect(futureItemsPage.cancelButton(item.id)).toBeDisabled();
 
-      // Still paid after a reload, not only in the client state
-      await futureItemsPage.reload();
+      // Still paid when loaded again, not only in the client state (a reload would drop the Batch No. filter)
+      await futureItemsPage.openBatch(cancelPaid.batchRef, TODAY);
       await futureItemsPage.scrollGrid('end');
       await expect(futureItemsPage.cell(item.id, 'status')).toHaveText('ยกเลิก');
       await expect(futureItemsPage.cell(item.id, 'paymentStatus')).toHaveText(PAID);

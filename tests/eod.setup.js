@@ -16,6 +16,15 @@ const GROUPS = {
   reconcile: { paid: 2, unpaid: 1 },
   // payment-reconcile.spec.js (TS05-TC03, cancel a paid item)
   cancelPaid: { paid: 1 },
+  // create-order-future-items.spec.js: only scanned, never ordered, so tests share them (2 batches for TS06-TC02)
+  scan: { paid: 6 },
+  scanOtherBatch: { paid: 5 },
+  // create-order-future-items.spec.js: TS08-TC01 orders them, TS06-TC05 scans one already in an order,
+  // TS08-TC02 / TS05-TC04 have one ordered / cancelled in another browser
+  createOrder: { paid: 3 },
+  ordered: { paid: 1 },
+  orderedElsewhere: { paid: 2 },
+  cancelledElsewhere: { paid: 2 },
 };
 
 test('upload EOD file and wait for the reconcile job', async ({ futureItemsApi, futureItemsPage }) => {
@@ -41,8 +50,7 @@ test('upload EOD file and wait for the reconcile job', async ({ futureItemsApi, 
   });
 
   for (const { batchRef, paid } of Object.values(groups)) {
-    await futureItemsPage.openBatch(batchRef, thaiDate());
-    await futureItemsPage.waitUntilPaid(paid, fileName);
+    await futureItemsPage.waitUntilPaid({ batchRef, date: thaiDate(), items: paid, fileName });
   }
 
   saveEodItems({ fileName, earlyRefCode, groups });

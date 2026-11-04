@@ -20,6 +20,13 @@ class BasePage {
     return this.menuLinks.filter({ hasText: name });
   }
 
+  /** Profile icon (last icon of the top menu) → ออกจากระบบ; lands on the login page, localStorage is kept */
+  async logout() {
+    await this.page.getByRole('banner').first().locator('svg').last().click();
+    await this.page.getByRole('menuitem', { name: 'ออกจากระบบ' }).click();
+    await this.page.waitForURL(/log-in/);
+  }
+
   /** The menu item of the current page is shown in bold */
   menuLabel(name) {
     return this.menuLink(name).locator('p');

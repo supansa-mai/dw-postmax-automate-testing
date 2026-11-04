@@ -41,7 +41,7 @@ class FutureItemsPage extends BasePage {
     await this.page.waitForLoadState('networkidle');
   }
 
-  /** Filters live in the URL query, so a reload keeps them */
+  /** Dates live in the URL query and survive a reload; Batch No. does not (04/11/2026), use openBatch() again */
   async reload() {
     await this.page.reload();
     await this.page.waitForLoadState('networkidle');
@@ -158,14 +158,15 @@ class FutureItemsPage extends BasePage {
   }
 
   /**
-   * Refreshes the current list until the payment reconcile job has marked `items` paid.
+   * Opens the batch again and again until the payment reconcile job has marked `items` paid. Not a reload: it
+   * would drop the Batch No. filter, and other items of the day push these off the first page.
    * The job runs every 5 minutes on dev and only processes the latest uploaded EOD file.
    */
-  async waitUntilPaid(items, fileName) {
+  async waitUntilPaid({ batchRef, date, items, fileName }) {
     await expect.poll(async () => {
-      // expect.poll stops at the first error, so a slow reload on dev must not end the wait
+      // expect.poll stops at the first error, so a slow page on dev must not end the wait
       try {
-        await this.reload();
+        await this.openBatch(batchRef, date);
         await this.scrollGrid('end');
         return await Promise.all(items.map((item) => this.cell(item.id, 'paymentStatus').innerText({ timeout: 15000 })));
       } catch (error) {

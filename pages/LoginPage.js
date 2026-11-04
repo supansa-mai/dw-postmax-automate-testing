@@ -26,7 +26,8 @@ class LoginPage extends BasePage {
    */
   async loginAs(account, label) {
     expect(account.email && account.password, `${label} not set in .env`).toBeTruthy();
-    await this.goto();
+    // e.g. right after logout(); opening it again there sometimes timed out on dev
+    if (!/log-in/.test(this.page.url())) await this.goto();
     await this.login(account);
     await expect(this.page).not.toHaveURL(/log-in/);
   }
