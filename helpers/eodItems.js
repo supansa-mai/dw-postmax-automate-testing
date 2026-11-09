@@ -9,7 +9,8 @@ function saveEodItems(items) {
 
 /**
  * Future items prepared by tests/eod.setup.js:
- * `{ fileName, earlyRefCode, groups: { <name>: { batchRef, paid, unpaid } }, order: { number, batchRef, items } }`.
+ * `{ fileName, earlyRefCode, groups: { <name>: { batchRef, paid, unpaid } }, shortRef: { batchRef, items },
+ *   otherCompany?: { a: { batchRef, items }, b: { batchRef, items } }, order: { number, batchRef, items } }`.
  * Call it inside a hook or test: specs are loaded before the setup project writes the file.
  */
 function readEodItems() {

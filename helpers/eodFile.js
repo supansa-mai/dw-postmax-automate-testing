@@ -51,26 +51,27 @@ function bangkokParts(date) {
 }
 
 /**
- * @param {{ runningNo: number, companyAccount: string, payments: { refCode: string, amount?: number }[], date?: Date }} options
- *   runningNo is also part of the file name, see helpers/eodBucket.js
+ * @param {{ companyCode: string, companyAccount: string, payments: { refCode?: string, reference1?: string, amount?: number }[], date?: Date }} options
+ *   a payment's reference1 replaces the filled-up refCode, e.g. to send it without the bank's suffix
  * @returns {Buffer} file content in TIS-620
  */
-function buildEodFile({ runningNo, companyAccount, payments, date = new Date() }) {
+function buildEodFile({ companyCode, companyAccount, payments, date = new Date() }) {
   const { date: postDate } = bangkokParts(date);
   const lines = [];
   const sequence = () => number(lines.length + 1, 6);
 
-  // H: 2–7 sequence, 8–10 bank, 11–20 company account, 21–60 company name, 61–68 post date, 69–76 running no.
+  // H: 2–7 sequence, 8–10 bank, 11–20 company account, 21–60 company name, 61–68 post date,
+  // 69–76 company code, mapped to the PostMax company by company_dlt_mappings (CPM-1820)
   lines.push(record(['H', sequence(), BANK_CODE, number(companyAccount, 10), text('PostMax Automation', 40),
-    postDate, text(runningNo, 8)]));
+    postDate, text(companyCode, 8)]));
 
-  for (const { refCode, amount = 100 } of payments) {
+  for (const { refCode, reference1 = reference(refCode, 20), amount = 100 } of payments) {
     const { time } = bangkokParts(date);
     // D: 21–28 date, 29–34 time, 35–84 payer, 85–104 reference 1 (refCode), 105–144 references 2–3,
     // 145–152 branch / teller, 153 C = credit, 154–156 transaction code, 157–163 cheque no., 164–176 amount,
     // 177–179 cheque bank, 244–256 copied from the sample file
     lines.push(record(['D', sequence(), BANK_CODE, number(companyAccount, 10), postDate, time,
-      text(randomThaiName(), 50), reference(refCode, 20), text('', 20), text('', 20), '0000', '0000', 'C', 'NET',
+      text(randomThaiName(), 50), text(reference1, 20), text('', 20), text('', 20), '0000', '0000', 'C', 'NET',
       number(0, 7), number(amount, 13), '000', text('', 64), '0040000000000']));
   }
 
@@ -82,9 +83,9 @@ function buildEodFile({ runningNo, companyAccount, payments, date = new Date() }
   return toTis620(lines.map((line) => `${line}\r\n`).join(''));
 }
 
-// Reference that matches no future item: 8xxxxxxxx, apart from EOD items (9xxxxxxxx) and manual QA data (61000xxxx)
+// Reference that matches no future item: 8 + 9 digits, apart from EOD items (9 + 9 digits) and manual QA data (61000xxxx)
 function unknownRefCode() {
-  return `8${String(randomInt(0, 1e8)).padStart(8, '0')}`;
+  return `8${String(randomInt(0, 1e9)).padStart(9, '0')}`;
 }
 
 module.exports = { buildEodFile, unknownRefCode, RECORD_LENGTH };

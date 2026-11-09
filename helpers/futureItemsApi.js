@@ -64,11 +64,11 @@ function uniqueRefCodes(count) {
   return [...refCodes];
 }
 
-// 9 random digits starting with 9, e.g. 904359628, for items paid by the EOD reconcile job: it matches the first
-// 9 characters of reference 1 and only when they are digits (confirmed by dev)
-function uniqueNumericRefCodes(count) {
+// Random digits starting with 9, e.g. 9043596281, for items paid by the EOD reconcile job: it cuts the refCode out of
+// reference 1 by the company's digit range (env.eodCompanies, CPM-1820), so pass that company's refDigits
+function uniqueNumericRefCodes(count, digits = 10) {
   const refCodes = new Set();
-  while (refCodes.size < count) refCodes.add(`9${String(randomInt(0, 1e8)).padStart(8, '0')}`);
+  while (refCodes.size < count) refCodes.add(`9${String(randomInt(0, 10 ** (digits - 1))).padStart(digits - 1, '0')}`);
   return [...refCodes];
 }
 

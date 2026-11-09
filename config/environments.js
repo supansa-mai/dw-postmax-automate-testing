@@ -10,6 +10,12 @@ const environments = {
     baseURL: 'https://dev.thaipostmax.datawow.io/th',
     apiURL: 'https://api-dev.thaipostmax.datawow.io',
     timeout: 30000,
+    // company_dlt_mappings (CPM-1820): the company code written in the EOD file header and how many digits of
+    // reference 1 (from the 1st) are the refCode; dlt = the company of USER_EMAIL / DLT_HUID, dltB = DLT_B_*
+    eodCompanies: {
+      dlt: { companyCode: '27744', refDigits: 10 },
+      dltB: { companyCode: '27743', refDigits: 9 },
+    },
   },
   uat: {
     baseURL: 'https://uat.thaipostmax.datawow.io/th',

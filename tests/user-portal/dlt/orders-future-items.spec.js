@@ -82,6 +82,8 @@ test.describe('Orders created from future items (DLT)', () => {
 
   test.describe('TS09-TC03 ตรวจสอบการดาวน์โหลดเอกสาร', () => {
     test('ดาวน์โหลดเอกสารครบ และ CSV ตรงกับข้อมูลจาก DLT', async ({ ordersPage, orderDetailPage: d }) => {
+      // The PDFs are generated on click and can take over 20s on dev for an order that was just created
+      test.slow();
       await ordersPage.goto();
       await ordersPage.openDetail(order.number);
 

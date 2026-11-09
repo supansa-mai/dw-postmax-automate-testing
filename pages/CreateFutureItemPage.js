@@ -33,8 +33,8 @@ class CreateFutureItemPage extends BasePage {
   /** Waits until React has hydrated the scan input: Enter pressed before that is lost */
   async goto() {
     await super.goto('future-items/create');
-    await expect.poll(() => this.scanInput.evaluate((el) => Object.keys(el).some((key) => key.startsWith('__reactProps'))))
-      .toBe(true);
+    await expect.poll(() => this.scanInput.evaluate((el) => Object.keys(el).some((key) => key.startsWith('__reactProps'))),
+      { timeout: 15000 }).toBe(true);
   }
 
   /** Modal by its title, e.g. "ไม่พบหมายเลขติดตามพัสดุนี้" or "สร้างใบนำส่ง?" */
