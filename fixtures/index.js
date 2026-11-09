@@ -4,6 +4,9 @@ const { LoginPage } = require('../pages/LoginPage');
 const { FutureItemsPage } = require('../pages/FutureItemsPage');
 const { CreateFutureItemPage } = require('../pages/CreateFutureItemPage');
 const { OrdersPage } = require('../pages/OrdersPage');
+const { OrderDetailPage } = require('../pages/OrderDetailPage');
+const { OrderReportPage } = require('../pages/OrderReportPage');
+const { ProfilePage } = require('../pages/ProfilePage');
 const { FutureItemsApi } = require('../helpers/futureItemsApi');
 const { env } = require('../config/environments');
 
@@ -23,6 +26,15 @@ const test = base.test.extend({
   },
   ordersPage: async ({ page }, use) => {
     await use(new OrdersPage(page));
+  },
+  orderDetailPage: async ({ page }, use) => {
+    await use(new OrderDetailPage(page));
+  },
+  orderReportPage: async ({ page }, use) => {
+    await use(new OrderReportPage(page));
+  },
+  profilePage: async ({ page }, use) => {
+    await use(new ProfilePage(page));
   },
   futureItemsApi: async ({ request }, use) => {
     await use(new FutureItemsApi(request, env));

@@ -18,8 +18,15 @@ commands, test data rules, domain and the sheet / Jira / Figma sources; this fil
   file plus the 5-minute reconcile job, so:
   - add a group to `GROUPS` in `tests/eod.setup.js` (numeric refCodes, created there) and read it with
     `readEodItems()`; the spec file must match `EOD_SPECS` in `playwright.config.js`;
-  - reuse an existing group when a case can share it (e.g. TS05-TC02 checks the item TS06-TC05 already put in an
-    order) - every new group adds data, and every create-order test adds a real ใบนำส่ง (currently 3 per run);
+  - one spec per page / scenario (create order TS06-TS08, my orders TS09, later drop off TS10 and reports TS11);
+    don't add a new page's cases to an existing spec just to reuse its data - a spec that depends on another spec's
+    test gets skipped whenever that test fails;
+  - data a spec only reads comes from the setup: e.g. `eod.setup.js` creates one order and saves it as `order`
+    for `orders-future-items.spec.js` and later read-only specs. A test that changes the data (receives the order
+    at drop off, cancels an item) creates its own instead, so the read-only specs see a stable state;
+  - sharing inside one spec is fine for a small follow-up check (TS05-TC02 checks the item TS06-TC05 already put in
+    an order). When the choice is "fewer real orders" vs "independent tests", say so in the plan and let the user
+    pick. Orders per run today: 3 in create-order + 1 shared = 4;
   - `create-order-future-items.spec.js` runs its tests in order (`mode: 'default'`), since they share the scanned
     list in localStorage and the per-huid rate limit.
 - Don't run `eod` specs on UAT unless the user says so: they create real orders there.

@@ -27,6 +27,17 @@ class BasePage {
     await this.page.waitForURL(/log-in/);
   }
 
+  /** Value shown next to a label in a detail section, e.g. "สถานะการฝากส่ง" */
+  field(label) {
+    return this.page.getByText(label, { exact: true }).locator('xpath=../following-sibling::*[1]');
+  }
+
+  /** Body rows of a plain (non-grid) table as cell texts, e.g. [['EMS', '3'], ['รวมทั้งหมด', '3']] */
+  async tableRows(table) {
+    return table.getByRole('rowgroup').last().getByRole('row')
+      .evaluateAll((rows) => rows.map((r) => [...r.querySelectorAll('td, [role=cell]')].map((c) => c.innerText.trim())));
+  }
+
   /** The menu item of the current page is shown in bold */
   menuLabel(name) {
     return this.menuLink(name).locator('p');

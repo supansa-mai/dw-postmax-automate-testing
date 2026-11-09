@@ -34,7 +34,7 @@ test.describe('Create order from future items (DLT)', () => {
   });
 
   test.describe('TS01-TC04 step 3 สแกนหมายเลขติดตามของบริษัท DLT อื่น', () => {
-    test('แสดง modal ไม่พบหมายเลขติดตามพัสดุนี้ และไม่นำเข้า', async ({ request, createFutureItemPage: p }) => {
+    test('สแกนพัสดุของบริษัทอื่น ขึ้นไม่พบ', async ({ request, createFutureItemPage: p }) => {
       const { dltB } = env;
       test.skip(!(dltB.huid && dltB.secretKey), 'DLT_B_HUID / DLT_B_SECRET_KEY (second DLT company) not set in .env');
       const { items: [item] } = await createBatch(new FutureItemsApi(request, { apiURL: env.apiURL, dlt: dltB }), 1);
@@ -46,7 +46,7 @@ test.describe('Create order from future items (DLT)', () => {
   });
 
   test.describe('TS06-TC01 ผู้ใช้งาน DLT สามารถเห็นหน้า "สร้างใบนำส่ง"', () => {
-    test('หน้า default: ช่องสแกน, รายการพัสดุ 0 รายการ, ปุ่มลบรายการและสร้างใบนำส่ง disable', async ({ createFutureItemPage: p }) => {
+    test('หน้าเริ่มต้นยังไม่มีรายการ ปุ่มกดไม่ได้', async ({ createFutureItemPage: p }) => {
       await expect(p.title).toBeVisible();
       await expect(p.breadcrumbList).toHaveText('รายการพัสดุล่วงหน้า (DLT)');
       await expect(p.breadcrumbCurrent).toHaveText('สร้างใบนำส่ง');
@@ -63,7 +63,7 @@ test.describe('Create order from future items (DLT)', () => {
       await expect(p.createButton).toBeDisabled();
     });
 
-    test('ปุ่มสร้างใบนำส่งในหน้ารายการพาไปหน้านี้ และ breadcrumb กลับหน้ารายการโดยคงค่าการค้นหา', async ({ futureItemsPage, createFutureItemPage: p }) => {
+    test('เข้าจากหน้ารายการ และ breadcrumb กลับโดยคงตัวกรอง', async ({ futureItemsPage, createFutureItemPage: p }) => {
       const { batchRef } = groups.scan;
       await futureItemsPage.openBatch(batchRef, TODAY);
       await futureItemsPage.createShipmentButton.click();
@@ -78,7 +78,7 @@ test.describe('Create order from future items (DLT)', () => {
   });
 
   test.describe('TS06-TC02 นำเข้ารายการพัสดุสำเร็จ - ชำระเงินแล้ว และรอสร้างใบนำส่ง', () => {
-    test('สแกนแล้วแสดงในตาราง, ช่องสแกนถูกล้าง, ต่าง batch ได้ และตัวพิมพ์เล็กได้', async ({ createFutureItemPage: p }) => {
+    test('สแกนพัสดุที่ชำระเงินแล้วเข้าตาราง', async ({ createFutureItemPage: p }) => {
       const [first, second] = groups.scan.paid;
       const [otherBatch, lowercase] = groups.scanOtherBatch.paid;
 
@@ -98,7 +98,7 @@ test.describe('Create order from future items (DLT)', () => {
   });
 
   test.describe('TS06-TC03 นำเข้ารายการพัสดุไม่สำเร็จ - ไม่พบหมายเลขติดตาม', () => {
-    test('หมายเลขที่ไม่มีในระบบ แสดง modal ไม่พบ กดตกลงแล้วช่องสแกนว่างและ focus', async ({ createFutureItemPage: p }) => {
+    test('หมายเลขที่ไม่มีในระบบ ขึ้นไม่พบ', async ({ createFutureItemPage: p }) => {
       await p.scan('XX000000000TH');
       const dialog = p.dialog(NOT_FOUND);
       await expect(dialog).toContainText('กรุณาตรวจสอบ และลองอีกครั้ง');
@@ -109,7 +109,7 @@ test.describe('Create order from future items (DLT)', () => {
       await expect(p.total).toHaveText('ทั้งหมด 0 รายการ');
     });
 
-    test('กรอกไม่ครบ 13 หลักโดยไม่กด Enter ไม่แสดง error และกรอกครบ 13 หลักนำเข้าอัตโนมัติ', async ({ createFutureItemPage: p }) => {
+    test('พิมพ์ครบ 13 หลักนำเข้าเองโดยไม่ต้องกด Enter', async ({ createFutureItemPage: p }) => {
       for (const value of SHORT_VALUES) await p.scanInput.fill(value);
       const [item] = groups.scan.paid;
       await p.scanInput.fill(item.trackingNumber);
@@ -118,7 +118,7 @@ test.describe('Create order from future items (DLT)', () => {
       await expect(p.page.getByRole('dialog')).toHaveCount(0);
     });
 
-    test('กรอกไม่ครบ 13 หลักแล้วกด Enter แสดง modal ไม่พบ', async ({ createFutureItemPage: p }) => {
+    test('พิมพ์ไม่ครบ 13 หลักแล้วกด Enter ขึ้นไม่พบ', async ({ createFutureItemPage: p }) => {
       for (const value of SHORT_VALUES) {
         await p.scan(value);
         const dialog = p.dialog(NOT_FOUND);
@@ -128,7 +128,7 @@ test.describe('Create order from future items (DLT)', () => {
       await expect(p.total).toHaveText('ทั้งหมด 0 รายการ');
     });
 
-    test('กรอกหมายเลขอ้างอิง (DLT) แทนหมายเลขติดตาม แสดง modal ไม่พบ', async ({ createFutureItemPage: p }) => {
+    test('กรอกหมายเลขอ้างอิง (DLT) แทน ขึ้นไม่พบ', async ({ createFutureItemPage: p }) => {
       await p.scan(groups.scan.paid[0].refCode);
       await expect(p.dialog(NOT_FOUND)).toBeVisible();
       await expect(p.total).toHaveText('ทั้งหมด 0 รายการ');
@@ -136,7 +136,7 @@ test.describe('Create order from future items (DLT)', () => {
   });
 
   test.describe('TS06-TC04 นำเข้ารายการพัสดุไม่สำเร็จ - ยังไม่ชำระเงิน', () => {
-    test('แสดง modal พัสดุนี้ยังไม่ชำระเงิน และไม่นำเข้า', async ({ futureItemsApi, createFutureItemPage: p }) => {
+    test('สแกนพัสดุที่ยังไม่ชำระเงิน ไม่นำเข้า', async ({ futureItemsApi, createFutureItemPage: p }) => {
       const { items: [unpaid] } = await createBatch(futureItemsApi, 1);
       expect(unpaid.paymentStatus).toBe('UNPAID');
 
@@ -147,7 +147,7 @@ test.describe('Create order from future items (DLT)', () => {
   });
 
   test.describe('TS06-TC05 นำเข้ารายการพัสดุไม่สำเร็จ - สร้างใบนำส่งแล้ว', () => {
-    test('แสดง modal พัสดุนี้ถูกสร้างใบนำส่งแล้ว และไม่นำเข้า', async ({ createFutureItemPage: p }) => {
+    test('สแกนพัสดุที่สร้างใบนำส่งแล้ว ไม่นำเข้า', async ({ createFutureItemPage: p }) => {
       const [item] = groups.ordered.paid;
       await p.scanItems([item]);
       await p.createOrder();
@@ -161,16 +161,17 @@ test.describe('Create order from future items (DLT)', () => {
   });
 
   test.describe('TS05-TC02 ยกเลิกไม่ได้เมื่อสร้างใบนำส่งแล้ว', () => {
-    test('ปุ่ม "× ยกเลิก" disable เมื่อสถานะ "สร้างใบนำส่งแล้ว"', async ({ futureItemsPage }) => {
+    test('ยกเลิกพัสดุที่สร้างใบนำส่งแล้วไม่ได้', async ({ futureItemsPage }) => {
       const { batchRef, paid: [item] } = groups.ordered;
       await futureItemsPage.openBatch(batchRef, TODAY);
+      await futureItemsPage.scrollGrid('end');
       await expect(futureItemsPage.cell(item.id, 'status')).toHaveText('สร้างใบนำส่งแล้ว');
       await expect(futureItemsPage.cancelButton(item.id)).toBeDisabled();
     });
   });
 
   test.describe('TS06-TC06 นำเข้ารายการพัสดุไม่สำเร็จ - ถูกยกเลิกแล้ว (รวม TS05-TC01 step 6)', () => {
-    test('แสดง modal พัสดุนี้ถูกยกเลิกแล้ว และไม่นำเข้า', async ({ futureItemsApi, futureItemsPage, createFutureItemPage: p }) => {
+    test('สแกนพัสดุที่ถูกยกเลิก ไม่นำเข้า', async ({ futureItemsApi, futureItemsPage, createFutureItemPage: p }) => {
       const { batchRef, items: [item] } = await createBatch(futureItemsApi, 1);
       await futureItemsPage.openBatch(batchRef, TODAY);
       await futureItemsPage.cancelItem(item.id);
@@ -184,7 +185,7 @@ test.describe('Create order from future items (DLT)', () => {
   });
 
   test.describe('TS06-TC07 ตรวจสอบการสแกนหมายเลขติดตามซ้ำในรายการเดียวกัน', () => {
-    test('สแกนซ้ำไม่เพิ่มรายการ และแสดง toast รายการนี้อยู่ในตารางแล้ว', async ({ createFutureItemPage: p }) => {
+    test('สแกนซ้ำไม่เพิ่มรายการ', async ({ createFutureItemPage: p }) => {
       const [item] = groups.scan.paid;
       await p.scanItems([item]);
 
@@ -195,7 +196,7 @@ test.describe('Create order from future items (DLT)', () => {
   });
 
   test.describe('TS06-TC08 ตรวจสอบการค้นหาในตารางรายการพัสดุ', () => {
-    test('ค้นหาด้วยหมายเลขติดตาม / หมายเลขอ้างอิง (DLT), ไม่พบข้อมูล และ pagination', async ({ createFutureItemPage: p }) => {
+    test('ค้นหาและเปลี่ยนหน้าในตารางที่สแกน', async ({ createFutureItemPage: p }) => {
       const items = [...groups.scan.paid, ...groups.scanOtherBatch.paid];
       await p.scanItems(items);
       await expect(p.paginationLabel).toHaveText(`1–10 of ${items.length}`);
@@ -215,7 +216,7 @@ test.describe('Create order from future items (DLT)', () => {
   });
 
   test.describe('TS06-TC10 ตรวจสอบการเก็บรายการที่สแกนไว้ (Local storage)', () => {
-    test('refresh และออกจากหน้าแล้วกลับมา รายการยังอยู่ แต่อีก browser ไม่เห็น', async ({ browser, basePage, createFutureItemPage: p }) => {
+    test('รายการที่สแกนยังอยู่หลัง refresh แต่อีก browser ไม่เห็น', async ({ browser, basePage, createFutureItemPage: p }) => {
       const items = groups.scan.paid.slice(0, 5);
       await p.scanItems(items);
 
@@ -235,7 +236,7 @@ test.describe('Create order from future items (DLT)', () => {
   });
 
   test.describe('TS07-TC01 ตรวจสอบปุ่มลบรายการ', () => {
-    test('ปุ่มลบรายการนับตาม checkbox และ checkbox หัวตารางเลือกทุกรายการทุกหน้า', async ({ createFutureItemPage: p }) => {
+    test('ปุ่มลบนับตามรายการที่เลือก', async ({ createFutureItemPage: p }) => {
       const items = [...groups.scan.paid, ...groups.scanOtherBatch.paid];
       await p.scanItems(items);
       await expect(p.deleteButton).toHaveText('ลบรายการ (0)');
@@ -258,7 +259,7 @@ test.describe('Create order from future items (DLT)', () => {
   });
 
   test.describe('TS07-TC02 ผู้ใช้งานสามารถลบรายการพัสดุที่นำเข้า', () => {
-    test('modal ลบรายการ กลับ / ยืนยัน, รายการยังรอสร้างใบนำส่ง และสแกนกลับมาได้', async ({ futureItemsPage, createFutureItemPage: p }) => {
+    test('ลบรายการที่เลือก แล้วสแกนกลับมาได้', async ({ futureItemsPage, createFutureItemPage: p }) => {
       const items = groups.scan.paid;
       const removed = items.slice(0, 2);
       await p.scanItems(items);
@@ -289,7 +290,7 @@ test.describe('Create order from future items (DLT)', () => {
   });
 
   test.describe('TS07-TC03 ตรวจสอบการลบรายการทั้งหมด', () => {
-    test('เลือกทั้งหมดแล้วลบ กลับเป็น 0 รายการ และปุ่มสร้างใบนำส่ง disable', async ({ createFutureItemPage: p }) => {
+    test('ลบทั้งหมดแล้วตารางว่าง', async ({ createFutureItemPage: p }) => {
       await p.scanItems(groups.scan.paid.slice(0, 3));
       await p.toggleAll();
       await p.deleteSelected();
@@ -301,7 +302,7 @@ test.describe('Create order from future items (DLT)', () => {
   });
 
   test.describe('TS08-TC01 ผู้ใช้งาน DLT สามารถสร้างใบนำส่งจากรายการพัสดุล่วงหน้า', () => {
-    test('modal ยกเลิก / ยืนยัน, ไปหน้าการฝากส่งของฉัน และรายการเปลี่ยนเป็นสร้างใบนำส่งแล้ว', async ({ ordersPage, futureItemsPage, createFutureItemPage: p }) => {
+    test('สร้างใบนำส่งสำเร็จ', async ({ ordersPage, futureItemsPage, createFutureItemPage: p }) => {
       const { batchRef, paid: items } = groups.createOrder;
       await p.scanItems(items);
 
@@ -317,6 +318,7 @@ test.describe('Create order from future items (DLT)', () => {
       // e.g. "สร้างใบนำส่งสำเร็จ เลขที่เอกสาร: PM112600320002"
       await expect(p.toast).toContainText(/สร้างใบนำส่งสำเร็จ เลขที่เอกสาร: PM\d+/);
       const [orderNumber] = (await p.toast.innerText()).match(/PM\d+/);
+      await ordersPage.waitForRows();
       const order = ordersPage.rows.first();
       await expect(ordersPage.cell(order, 'orderNumber')).toHaveText(orderNumber);
       await expect(ordersPage.cell(order, 'reference')).toHaveText('จากรายการล่วงหน้า');
@@ -340,7 +342,7 @@ test.describe('Create order from future items (DLT)', () => {
 
   // CPM-1805: the order is validated again on confirm; items changed in the meantime are listed and removed
   test.describe('TS08-TC02 รายการถูกสร้างใบนำส่งจากอีก browser ก่อนยืนยัน', () => {
-    test('แสดง modal สร้างใบนำส่งไม่สำเร็จ พร้อมหมายเลขติดตาม / หมายเลขอ้างอิง (DLT) และเอารายการนั้นออก', async ({ browser, createFutureItemPage: p }) => {
+    test('รายการถูกสร้างใบนำส่งจากอีก browser ระบบเอาออกให้', async ({ browser, createFutureItemPage: p }) => {
       const [taken, kept] = groups.orderedElsewhere.paid;
       await p.scanItems([taken, kept]);
 
@@ -363,7 +365,7 @@ test.describe('Create order from future items (DLT)', () => {
   });
 
   test.describe('TS05-TC04 ตรวจสอบการยกเลิกรายการที่อยู่ระหว่างนำเข้าในหน้าสร้างใบนำส่ง', () => {
-    test('รายการถูกยกเลิกจากอีก browser แสดง modal สร้างใบนำส่งไม่สำเร็จ และเอารายการนั้นออก', async ({ browser, createFutureItemPage: p }) => {
+    test('รายการถูกยกเลิกจากอีก browser ระบบเอาออกให้', async ({ browser, createFutureItemPage: p }) => {
       const { batchRef, paid: [cancelled, kept] } = groups.cancelledElsewhere;
       await p.scanItems([cancelled, kept]);
 
@@ -391,7 +393,7 @@ test.describe('Create order from future items (DLT)', () => {
   });
 
   test.describe('TS08-TC05 ผู้ใช้งานสามารถยกเลิกการสร้างใบนำส่ง', () => {
-    test('modal ยกเลิก / ยืนยัน ล้างรายการ และรายการยังรอสร้างใบนำส่ง', async ({ futureItemsPage, createFutureItemPage: p }) => {
+    test('ยกเลิกการสร้างใบนำส่ง ล้างรายการที่สแกน', async ({ futureItemsPage, createFutureItemPage: p }) => {
       const items = groups.scan.paid;
       await p.scanItems(items);
 

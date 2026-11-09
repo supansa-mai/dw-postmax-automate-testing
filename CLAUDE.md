@@ -35,6 +35,7 @@ npm run report                       # open last HTML report
 
 Follow `tests/api/create-future-items.spec.js`:
 - `test.describe` blocks are named after the test-case IDs in the QA sheet (`TS02-TC03 ...`).
+- `test()` titles are short and say what is checked in plain words (`สร้างใบนำส่งสำเร็จ`, `over the limit → 429, OK again after Retry-After`): the main outcome or the condition that sets the case apart, not every step, and without repeating the case ID.
 - Missing credentials: a suite's required secrets (the DLT key pair, `USER_*` for UI via `tests/auth.setup.js`) fail the run with a clear message, so a run without them never looks green. Only optional extras (e.g. `NON_DLT_*`, another env's DLT key) `test.skip()` with the reason.
 - Cases that are On Hold use `test.fixme('... (On Hold, <ticket>)', async () => {})` so they stay visible in the report.
 - For rejected requests, prove nothing was persisted by re-sending the same refCodes and asserting they are created fresh (`expectNotCreated` pattern).

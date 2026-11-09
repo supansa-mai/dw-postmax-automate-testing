@@ -33,7 +33,7 @@ test.describe.configure({ mode: 'default' });
 
 test.describe('Future Items list (DLT)', () => {
   test.describe('TS01-TC01 ผู้ใช้งาน DLT สามารถเห็นเมนู "รายการพัสดุล่วงหน้า (DLT)"', () => {
-    test('เมนูแสดงถัดจาก เตรียมการฝากส่ง และกดแล้วเข้าหน้ารายการ พร้อม highlight เมนู', async ({ basePage, futureItemsPage, page }) => {
+    test('ผู้ใช้งาน DLT เห็นเมนูและเข้าหน้ารายการได้', async ({ basePage, futureItemsPage, page }) => {
       await basePage.goto();
       await expect(basePage.menuLinks).toHaveText(MENU);
 
@@ -49,12 +49,12 @@ test.describe('Future Items list (DLT)', () => {
   test.describe('TS01-TC02 ผู้ใช้งานที่ไม่มี flag DLT ไม่เห็นเมนู "รายการพัสดุล่วงหน้า (DLT)"', () => {
     test.use({ storageState: { cookies: [], origins: [] } });
 
-    test('ผู้ใช้งานทั่วไป ไม่เห็นเมนู DLT และเมนูอื่นแสดงตามเดิม', async ({ basePage, loginPage }) => {
+    test('ผู้ใช้งานทั่วไปไม่เห็นเมนู DLT', async ({ basePage, loginPage }) => {
       await loginPage.loginAs(env.normalUser, 'NORMAL_USER_EMAIL / NORMAL_USER_PASSWORD');
       await expect(basePage.menuLinks).toHaveText(NON_DLT_MENU);
     });
 
-    test('ผู้ใช้งาน TSD ไม่เห็นเมนู DLT และเมนูของ TSD แสดงตามเดิม', async ({ basePage, loginPage }) => {
+    test('ผู้ใช้งาน TSD ไม่เห็นเมนู DLT', async ({ basePage, loginPage }) => {
       await loginPage.loginAs(env.tsdUser, 'TSD_USER_EMAIL / TSD_USER_PASSWORD');
       await expect(basePage.menuLinks).toHaveText([...NON_DLT_MENU, 'รายงานประจำเดือน']);
     });
@@ -67,7 +67,7 @@ test.describe('Future Items list (DLT)', () => {
       { label: 'ผู้ใช้งานทั่วไป', account: env.normalUser, envKeys: 'NORMAL_USER_EMAIL / NORMAL_USER_PASSWORD' },
       { label: 'ผู้ใช้งาน TSD', account: env.tsdUser, envKeys: 'TSD_USER_EMAIL / TSD_USER_PASSWORD' },
     ]) {
-      test(`${label} เปิด URL หน้ารายการ / หน้าสร้างใบนำส่ง (DLT) แล้วเจอหน้าไม่สามารถเข้าถึง และกดกลับสู่หน้าหลักได้`, async ({ basePage, loginPage, futureItemsPage, page }) => {
+      test(`${label} เปิด URL หน้า DLT ตรงๆ แล้วเข้าไม่ได้`, async ({ basePage, loginPage, futureItemsPage, page }) => {
         await loginPage.loginAs(account, envKeys);
 
         for (const path of ['future-items', 'future-items/create']) {
@@ -104,7 +104,7 @@ test.describe('Future Items list (DLT)', () => {
       await request.dispose();
     });
 
-    test('บริษัท A เห็นเฉพาะรายการและตัวเลขสรุปของบริษัท A', async ({ futureItemsPage }) => {
+    test('บริษัท A เห็นเฉพาะรายการของตัวเอง', async ({ futureItemsPage }) => {
       await futureItemsPage.openBatch(batchRef, TODAY);
       await expectRows(futureItemsPage, itemsA);
       await expect(futureItemsPage.summaryCount('all')).toHaveText(String(itemsA.length));
@@ -115,7 +115,7 @@ test.describe('Future Items list (DLT)', () => {
     test.describe('บริษัท B', () => {
       test.use({ storageState: { cookies: [], origins: [] } });
 
-      test('บริษัท B เห็นเฉพาะรายการและตัวเลขสรุปของบริษัท B', async ({ loginPage, futureItemsPage }) => {
+      test('บริษัท B เห็นเฉพาะรายการของตัวเอง', async ({ loginPage, futureItemsPage }) => {
         await loginPage.loginAs(dltB.user, 'DLT_B_USER_EMAIL / DLT_B_USER_PASSWORD');
         await futureItemsPage.openBatch(batchRef, TODAY);
         await expectRows(futureItemsPage, itemsB);
@@ -127,7 +127,7 @@ test.describe('Future Items list (DLT)', () => {
   });
 
   test.describe('TS04-TC01 ผู้ใช้งาน DLT เห็นหน้า "รายการพัสดุล่วงหน้า (DLT)" - Default', () => {
-    test('เมนูพาไปหน้ารายการ และหน้าแสดงค่า default ก่อนเลือกวันที่', async ({ futureItemsPage, page }) => {
+    test('หน้าเริ่มต้นก่อนเลือกวันที่', async ({ futureItemsPage, page }) => {
       await page.goto('');
       await page.getByRole('link', { name: 'รายการพัสดุล่วงหน้า (DLT)' }).click();
       await expect(page).toHaveURL(/\/th\/future-items/);
@@ -163,7 +163,7 @@ test.describe('Future Items list (DLT)', () => {
       await expect(futureItemsPage.grid).toBeHidden();
     });
 
-    test('เลือกวันเดียวกัน แสดงการ์ดสรุป ตาราง และ dropdown enable', async ({ futureItemsPage }) => {
+    test('เลือกวันเดียวกันแล้วแสดงข้อมูล', async ({ futureItemsPage }) => {
       await futureItemsPage.selectDateRange(TODAY, TODAY);
       await expect(futureItemsPage.grid).toBeVisible();
       await expect(futureItemsPage.summaryCount('all')).toBeVisible();
@@ -172,7 +172,7 @@ test.describe('Future Items list (DLT)', () => {
       }
     });
 
-    test('ล้างค่าวันที่ กลับสู่ empty state และ disable dropdown', async ({ futureItemsPage }) => {
+    test('ล้างวันที่แล้วกลับเป็นหน้าว่าง', async ({ futureItemsPage }) => {
       await futureItemsPage.selectDateRange(TODAY, TODAY);
       await expect(futureItemsPage.grid).toBeVisible();
 
@@ -212,7 +212,7 @@ test.describe('Future Items list (DLT)', () => {
       await expect(futureItemsPage.calendarDay(15)).toBeDisabled();
       await expect(futureItemsPage.nextMonthButton).toBeDisabled();
     });
-    test('ช่วงวันที่ขอบ 1 เดือน: เริ่ม 01/03/2569 เลือกวันสิ้นสุดได้ถึง 31/03/2569', async ({ futureItemsPage }) => {
+    test('เลือกช่วงวันที่ได้ถึง 1 เดือนพอดี', async ({ futureItemsPage }) => {
       await futureItemsPage.startDate.fill('01/03/2569');
       await futureItemsPage.openCalendar('end');
       await futureItemsPage.showCalendarMonth('มีนาคม 2569');
@@ -237,7 +237,7 @@ test.describe('Future Items list (DLT)', () => {
   });
 
   test.describe('TS04-TC03 การ์ดสรุปและตารางรายการ', () => {
-    test('การ์ดสรุป ตาราง และ chip สถานะ ตรงกับข้อมูลที่ยิงเข้ามา', async ({ futureItemsApi, futureItemsPage }) => {
+    test('การ์ดสรุปและตารางตรงกับข้อมูลที่ส่งเข้ามา', async ({ futureItemsApi, futureItemsPage }) => {
       const { batchRef, items } = await createBatch(futureItemsApi, 3);
       await futureItemsPage.openBatch(batchRef, TODAY);
 
@@ -273,7 +273,7 @@ test.describe('Future Items list (DLT)', () => {
   });
 
   test.describe('TS04-TC04 การกรองรายการพัสดุล่วงหน้า', () => {
-    test('กรองตาม Batch No. / สถานะ / สถานะการชำระเงิน และกรองร่วมกัน', async ({ futureItemsApi, futureItemsPage, page }) => {
+    test('กรองตาม Batch No. สถานะ และการชำระเงิน', async ({ futureItemsApi, futureItemsPage, page }) => {
       const { batchRef, items } = await createBatch(futureItemsApi, 2);
       const [cancelled, pending] = items;
       await futureItemsPage.goto();
@@ -310,7 +310,7 @@ test.describe('Future Items list (DLT)', () => {
       await expect(futureItemsPage.summaryCount('all')).toHaveText('1');
     });
 
-    test('เปลี่ยนช่วงวันที่หลังเลือก batch แล้ว Batch No. reset เป็น "ทั้งหมด"', async ({ futureItemsApi, futureItemsPage }) => {
+    test('เปลี่ยนวันที่แล้ว Batch No. กลับเป็นทั้งหมด', async ({ futureItemsApi, futureItemsPage }) => {
       const { batchRef } = await createBatch(futureItemsApi, 1);
       await futureItemsPage.openBatch(batchRef, TODAY);
       await expect(futureItemsPage.batchFilter).toHaveValue(batchRef);
@@ -322,7 +322,7 @@ test.describe('Future Items list (DLT)', () => {
   });
 
   test.describe('TS04-TC05 การค้นหารายการพัสดุล่วงหน้า', () => {
-    test('ประเภทการค้นหามีตัวเลือกครบ และ placeholder เปลี่ยนตามประเภท', async ({ futureItemsPage, page }) => {
+    test('ตัวเลือกประเภทการค้นหา', async ({ futureItemsPage, page }) => {
       await futureItemsPage.goto();
       await futureItemsPage.searchField.click();
       await expect(page.getByRole('option')).toHaveText(['ชื่อผู้รับ', 'หมายเลขอ้างอิง (DLT)', 'หมายเลขติดตาม', 'เบอร์โทรศัพท์', 'อีเมล']);
@@ -334,7 +334,7 @@ test.describe('Future Items list (DLT)', () => {
       }
     });
 
-    test('ค้นหาแต่ละประเภทแบบ partial match และการ์ดสรุปไม่เปลี่ยนตามการค้นหา', async ({ futureItemsApi, futureItemsPage }) => {
+    test('ค้นหาแต่ละประเภทด้วยคำบางส่วน', async ({ futureItemsApi, futureItemsPage }) => {
       const { batchRef, items } = await createBatch(futureItemsApi, 2);
       const [item] = items;
       const matching = (field, text) => items.filter((i) => i[field].toLowerCase().includes(text.toLowerCase()));
@@ -384,7 +384,7 @@ test.describe('Future Items list (DLT)', () => {
       await request.dispose();
     });
 
-    test('TS04-TC06 คลิกหัวคอลัมน์เรียงน้อยไปมาก / มากไปน้อย ทั้งชุดข้อมูล', async ({ futureItemsPage }) => {
+    test('เรียงตามหัวคอลัมน์', async ({ futureItemsPage }) => {
       const refCodes = batch.items.map((i) => i.refCode).sort();
       const header = futureItemsPage.grid.getByRole('columnheader', { name: 'หมายเลขอ้างอิง (DLT)' });
       const firstRefCode = futureItemsPage.rows.first().locator('[data-field="refCode"]');
@@ -400,7 +400,7 @@ test.describe('Future Items list (DLT)', () => {
       await expect(firstRefCode).toHaveText(refCodes[refCodes.length - 1]);
     });
 
-    test('TS04-TC07 Rows per page / เปลี่ยนหน้า / เปลี่ยนตัวกรองกลับหน้า 1', async ({ futureItemsPage, page }) => {
+    test('เปลี่ยนจำนวนแถวและเปลี่ยนหน้า', async ({ futureItemsPage, page }) => {
       await futureItemsPage.openBatch(batch.batchRef, TODAY);
       await expect(futureItemsPage.rowsPerPage).toHaveText('10');
       await expect(futureItemsPage.paginationLabel).toHaveText('1–10 of 11');
@@ -430,7 +430,7 @@ test.describe('Future Items list (DLT)', () => {
   });
 
   test.describe('TS05-TC01 ยกเลิกรายการพัสดุล่วงหน้า', () => {
-    test('modal ยืนยัน, กด "กลับ" ไม่เปลี่ยน, กด "ยืนยัน" แล้วสถานะเป็นยกเลิก', async ({ futureItemsApi, futureItemsPage }) => {
+    test('ยกเลิกรายการสำเร็จ', async ({ futureItemsApi, futureItemsPage }) => {
       const { batchRef, items } = await createBatch(futureItemsApi, 2);
       const [item] = items;
       await futureItemsPage.openBatch(batchRef, TODAY);

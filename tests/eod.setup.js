@@ -25,9 +25,11 @@ const GROUPS = {
   ordered: { paid: 1 },
   orderedElsewhere: { paid: 2 },
   cancelledElsewhere: { paid: 2 },
+  // Put in the shared order below
+  order: { paid: 3 },
 };
 
-test('upload EOD file and wait for the reconcile job', async ({ futureItemsApi, futureItemsPage }) => {
+test('upload EOD file and wait for the reconcile job', async ({ futureItemsApi, futureItemsPage, createFutureItemPage }) => {
   const { eod } = env;
   expect(eod.bucket && eod.prefix && eod.accessKeyId && eod.secretAccessKey && eod.companyAccount,
     'EOD_S3_* / EOD_COMPANY_ACCOUNT not set in .env').toBeTruthy();
@@ -53,5 +55,14 @@ test('upload EOD file and wait for the reconcile job', async ({ futureItemsApi, 
     await futureItemsPage.waitUntilPaid({ batchRef, date: thaiDate(), items: paid, fileName });
   }
 
-  saveEodItems({ fileName, earlyRefCode, groups });
+  // One order for the specs that only read it (orders-future-items.spec.js); a spec that changes an order's status,
+  // e.g. receiving it at drop off, creates its own
+  const { batchRef, paid: items } = groups.order;
+  await createFutureItemPage.goto();
+  await createFutureItemPage.scanItems(items);
+  await createFutureItemPage.createOrder();
+  await expect(createFutureItemPage.toast).toContainText(/สร้างใบนำส่งสำเร็จ เลขที่เอกสาร: PM\d+/);
+  const [number] = (await createFutureItemPage.toast.innerText()).match(/PM\d+/);
+
+  saveEodItems({ fileName, earlyRefCode, groups, order: { number, batchRef, items } });
 });

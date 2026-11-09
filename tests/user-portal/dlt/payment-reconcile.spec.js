@@ -34,7 +34,7 @@ test.describe('Payment reconcile (EOD file)', () => {
   });
 
   test.describe('TS03-TC01 ระบบอัปเดตสถานะการชำระเงินเป็น "ชำระเงินแล้ว" - ref code ตรงกับไฟล์ EOD', () => {
-    test('รายการที่อยู่ในไฟล์เป็นชำระเงินแล้ว และการ์ดยังไม่ชำระเงินนับเฉพาะรายการที่ไม่อยู่ในไฟล์', async ({ futureItemsPage }) => {
+    test('รายการที่อยู่ในไฟล์ EOD เป็นชำระเงินแล้ว', async ({ futureItemsPage }) => {
       await futureItemsPage.openBatch(reconcile.batchRef, TODAY);
       await futureItemsPage.scrollGrid('end');
 
@@ -47,7 +47,7 @@ test.describe('Payment reconcile (EOD file)', () => {
   });
 
   test.describe('TS03-TC02 รายการที่ไม่มีในไฟล์ EOD ยังคงสถานะ "ยังไม่ชำระเงิน"', () => {
-    test('รายการที่ไม่อยู่ในไฟล์ยังเป็นยังไม่ชำระเงิน แม้ไฟล์มี ref ที่ไม่มีในระบบ', async ({ futureItemsPage }) => {
+    test('รายการที่ไม่อยู่ในไฟล์ EOD ยังไม่ชำระเงิน', async ({ futureItemsPage }) => {
       await futureItemsPage.openBatch(reconcile.batchRef, TODAY);
       await futureItemsPage.scrollGrid('end');
 
@@ -58,7 +58,7 @@ test.describe('Payment reconcile (EOD file)', () => {
   });
 
   test.describe('TS03-TC03 ตรวจสอบลำดับการมาของข้อมูล', () => {
-    test('ไฟล์ EOD มาก่อน future item: สร้างแล้วได้ PAID ทันที', async ({ futureItemsApi, futureItemsPage }) => {
+    test('จ่ายเงินก่อนส่งข้อมูลเข้ามา ได้ชำระเงินแล้วทันที', async ({ futureItemsApi, futureItemsPage }) => {
       const payload = buildPayload({ refCodes: [earlyRefCode] });
       const response = await futureItemsApi.create(payload);
       expect(response.status(), await response.text()).toBe(201);
@@ -72,7 +72,7 @@ test.describe('Payment reconcile (EOD file)', () => {
   });
 
   test.describe('TS05-TC03 ยกเลิกรายการที่ชำระเงินแล้ว', () => {
-    test('ยกเลิกได้ และสถานะการชำระเงินยังเป็นชำระเงินแล้ว', async ({ futureItemsPage }) => {
+    test('ยกเลิกรายการที่ชำระเงินแล้วได้', async ({ futureItemsPage }) => {
       const [item] = cancelPaid.paid;
       await futureItemsPage.openBatch(cancelPaid.batchRef, TODAY);
       await futureItemsPage.scrollGrid('end');

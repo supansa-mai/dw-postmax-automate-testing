@@ -376,7 +376,7 @@ test.describe('Create Future Items API', () => {
       throw new Error(`no 429 after ${MAX_REQUESTS} requests`);
     }
 
-    test('requests up to the limit → 201, over it → 429 tooManyRequests + Retry-After, resent after Retry-After → 201', async ({ futureItemsApi }) => {
+    test('over the limit → 429, OK again after Retry-After', async ({ futureItemsApi }) => {
       test.setTimeout(2 * 60 * 1000);
       let limited;
 
@@ -404,7 +404,7 @@ test.describe('Create Future Items API', () => {
       });
     });
 
-    test('limit is per huid: another DLT company still gets 201 while this huid gets 429', async ({ futureItemsApi, request }) => {
+    test('limit is per huid, other companies are not blocked', async ({ futureItemsApi, request }) => {
       const { dltB } = env;
       test.skip(!(dltB.huid && dltB.secretKey), 'DLT_B_HUID / DLT_B_SECRET_KEY (second DLT company) not set in .env');
       const companyB = new FutureItemsApi(request, { apiURL: env.apiURL, dlt: dltB });

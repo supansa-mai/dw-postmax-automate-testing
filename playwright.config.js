@@ -9,7 +9,7 @@ const { env } = require('./config/environments');
 const { USER_STATE } = require('./config/auth');
 
 // Specs that need future items already paid; they run after tests/eod.setup.js has uploaded the EOD file
-const EOD_SPECS = [/payment-reconcile\.spec\.js/, /create-order-future-items\.spec\.js/];
+const EOD_SPECS = [/payment-reconcile\.spec\.js/, /create-order-future-items\.spec\.js/, /orders-future-items\.spec\.js/];
 
 module.exports = defineConfig({
   testDir: './tests',
