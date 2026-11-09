@@ -11,8 +11,7 @@
  */
 const { test, expect } = require('../../../fixtures');
 const { env } = require('../../../config/environments');
-const { FutureItemsApi, buildPayload, createBatch, uniqueNumericRefCodes } = require('../../../helpers/futureItemsApi');
-const { EodBucket } = require('../../../helpers/eodBucket');
+const { buildPayload } = require('../../../helpers/futureItemsApi');
 const { readEodItems } = require('../../../helpers/eodItems');
 const { thaiDate } = require('../../../helpers/thaiDate');
 
@@ -20,24 +19,10 @@ const TODAY = thaiDate();
 const PAID = 'ชำระเงินแล้ว';
 const UNPAID = 'ยังไม่ชำระเงิน';
 
-// One test at a time: dev API's DB pool is only 3 connections and returns 500 under concurrent load, and the tests
-// below that upload their own EOD file need it to be the only one in the job's 5-minute round
+// One test at a time: dev API's DB pool is only 3 connections and returns 500 under concurrent load
 test.describe.configure({ mode: 'default' });
 
 const DLT_B_SET = Boolean(env.dltB.huid && env.dltB.secretKey && env.dltB.user.email && env.dltB.user.password);
-
-/** Uploads an EOD file of its own; each needs a job round to itself, since the job only reads the latest file */
-async function uploadEodFile(companyCode, payments) {
-  return new EodBucket(env.eod).upload({ companyCode, companyAccount: env.eod.companyAccount, payments });
-}
-
-async function expectPaymentStatus(futureItemsPage, { batchRef, items }, status) {
-  await futureItemsPage.openBatch(batchRef, TODAY);
-  await futureItemsPage.scrollGrid('end');
-  for (const item of items) {
-    await expect(futureItemsPage.cell(item.id, 'paymentStatus')).toHaveText(status);
-  }
-}
 
 test.describe('Payment reconcile (EOD file)', () => {
   /** Batch with 2 items in the EOD file and 1 left out of it */
@@ -110,28 +95,16 @@ test.describe('Payment reconcile (EOD file)', () => {
     });
   });
 
+  // TS03-TC08 steps 1–2 (company B's own file) are in payment-reconcile-files.spec.js
   test.describe('TS03-TC08 ตรวจสอบการตัด refCode ตาม code_digit_start / code_digit_end ของแต่ละ company', () => {
-    test.describe('บริษัท B', () => {
-      test.use({ storageState: { cookies: [], origins: [] } });
-
-      // Also TS03-TC07 step 4 (company B's file pays company B's items)
-      test('บริษัทที่ตัด 9 หลัก ชำระเงินแล้ว', async ({ request, loginPage, futureItemsPage }) => {
-        test.skip(!DLT_B_SET, 'DLT_B_* (second DLT company) not set in .env');
-        test.setTimeout(10 * 60 * 1000);
-        const company = env.eodCompanies.dltB;
-        const batch = await createBatch(new FutureItemsApi(request, { apiURL: env.apiURL, dlt: env.dltB }), 2, undefined,
-          uniqueNumericRefCodes(2, company.refDigits));
-        // Digits after the refCode, as in the sheet's 6100030029999
-        const fileName = await uploadEodFile(company.companyCode, batch.items.map(({ refCode }) => ({ reference1: `${refCode}9999` })));
-
-        await loginPage.loginAs(env.dltB.user, 'DLT_B_USER_EMAIL / DLT_B_USER_PASSWORD');
-        await futureItemsPage.waitUntilPaid({ batchRef: batch.batchRef, date: TODAY, items: batch.items, fileName });
-      });
+    test('บริษัทที่ตัด 10 หลัก ชำระเงินแล้ว', async ({ futureItemsPage }) => {
+      for (const item of reconcile.paid) expect(item.refCode).toHaveLength(env.eodCompanies.dlt.refDigits);
+      await futureItemsPage.expectPaymentStatus({ batchRef: reconcile.batchRef, items: reconcile.paid }, TODAY, PAID);
     });
 
     test('ref สั้นกว่าช่วงหลักที่ตัด ไม่ match', async ({ futureItemsPage }) => {
       const { shortRef } = readEodItems();
-      await expectPaymentStatus(futureItemsPage, shortRef, UNPAID);
+      await futureItemsPage.expectPaymentStatus(shortRef, TODAY, UNPAID);
     });
   });
 
@@ -142,7 +115,7 @@ test.describe('Payment reconcile (EOD file)', () => {
 
     test('refCode ซ้ำกับบริษัทอื่น บริษัทเจ้าของไฟล์ชำระเงินแล้ว', async ({ futureItemsPage }) => {
       const { otherCompany } = readEodItems();
-      await expectPaymentStatus(futureItemsPage, otherCompany.a, PAID);
+      await futureItemsPage.expectPaymentStatus(otherCompany.a, TODAY, PAID);
     });
 
     test.describe('บริษัท B', () => {
@@ -151,21 +124,8 @@ test.describe('Payment reconcile (EOD file)', () => {
       test('รายการของบริษัทอื่นในไฟล์นี้ ยังไม่ชำระเงิน', async ({ loginPage, futureItemsPage }) => {
         const { otherCompany } = readEodItems();
         await loginPage.loginAs(env.dltB.user, 'DLT_B_USER_EMAIL / DLT_B_USER_PASSWORD');
-        await expectPaymentStatus(futureItemsPage, otherCompany.b, UNPAID);
+        await futureItemsPage.expectPaymentStatus(otherCompany.b, TODAY, UNPAID);
       });
     });
-  });
-
-  test.describe('TS03-TC10 ตรวจสอบไฟล์ที่ H-COMPANY-CODE ไม่มี mapping หรือ mapping ไม่ active', () => {
-    for (const [title, companyCode] of [['company code ที่ไม่มี mapping ไม่อัปเดตรายการ', '99999'], ['company code ว่าง ไม่อัปเดตรายการ', '']]) {
-      test(title, async ({ futureItemsApi, futureItemsPage }) => {
-        test.setTimeout(10 * 60 * 1000);
-        const batch = await createBatch(futureItemsApi, 1, undefined, uniqueNumericRefCodes(1, env.eodCompanies.dlt.refDigits));
-        const fileName = await uploadEodFile(companyCode, batch.items);
-        await new EodBucket(env.eod).waitUntilProcessed(fileName);
-
-        await expectPaymentStatus(futureItemsPage, batch, UNPAID);
-      });
-    }
   });
 });

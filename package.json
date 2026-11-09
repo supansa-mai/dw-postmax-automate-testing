@@ -8,6 +8,7 @@
     "test:local": "cross-env ENV=local playwright test",
     "test:api": "playwright test --project=api",
     "test:eod": "playwright test --project=eod",
+    "test:eod-files": "cross-env EOD_FILES=1 playwright test --project=eod-files",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui --project=api --project=chromium --project=eod",
     "test:debug": "playwright test --debug",

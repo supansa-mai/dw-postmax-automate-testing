@@ -10,6 +10,8 @@ const { USER_STATE } = require('./config/auth');
 
 // Specs that need future items already paid; they run after tests/eod.setup.js has uploaded the EOD file
 const EOD_SPECS = [/payment-reconcile\.spec\.js/, /create-order-future-items\.spec\.js/, /orders-future-items\.spec\.js/];
+// Specs that upload EOD files of their own, one job round (5 minutes) each; opt-in with EOD_FILES=1 (npm run test:eod-files)
+const EOD_FILE_SPECS = [/payment-reconcile-files\.spec\.js/];
 
 module.exports = defineConfig({
   testDir: './tests',
@@ -45,7 +47,7 @@ module.exports = defineConfig({
     },
     {
       name: 'chromium',
-      testIgnore: [/tests[\\/]api[\\/]/, ...EOD_SPECS],
+      testIgnore: [/tests[\\/]api[\\/]/, ...EOD_SPECS, ...EOD_FILE_SPECS],
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'], storageState: USER_STATE },
     },
@@ -53,7 +55,7 @@ module.exports = defineConfig({
     ...(process.env.WEBKIT
       ? [{
           name: 'webkit',
-          testIgnore: [/tests[\\/]api[\\/]/, ...EOD_SPECS],
+          testIgnore: [/tests[\\/]api[\\/]/, ...EOD_SPECS, ...EOD_FILE_SPECS],
           dependencies: ['setup'],
           use: { ...devices['Desktop Safari'], storageState: USER_STATE },
         }]
@@ -64,5 +66,14 @@ module.exports = defineConfig({
       dependencies: ['eod-setup'],
       use: { ...devices['Desktop Chrome'], storageState: USER_STATE },
     },
+    // Not with eod-setup in the same run: the job only reads the latest file, so their uploads would replace each other
+    ...(process.env.EOD_FILES
+      ? [{
+          name: 'eod-files',
+          testMatch: EOD_FILE_SPECS,
+          dependencies: ['setup'],
+          use: { ...devices['Desktop Chrome'], storageState: USER_STATE },
+        }]
+      : []),
   ],
 });

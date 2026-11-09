@@ -179,6 +179,14 @@ class FutureItemsPage extends BasePage {
     }).toEqual(items.map(() => 'ชำระเงินแล้ว'));
   }
 
+  async expectPaymentStatus({ batchRef, items }, date, status) {
+    await this.openBatch(batchRef, date);
+    await this.scrollGrid('end');
+    for (const item of items) {
+      await expect(this.cell(item.id, 'paymentStatus')).toHaveText(status);
+    }
+  }
+
   async cancelItem(id) {
     await this.scrollGrid('end');
     await this.cancelButton(id).click();
