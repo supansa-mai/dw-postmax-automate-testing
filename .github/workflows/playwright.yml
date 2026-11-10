@@ -4,32 +4,80 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Nightly run on all browsers (WebKit included), 02:00 Bangkok time
+  schedule:
+    - cron: '0 19 * * *'
   workflow_dispatch:
     inputs:
       environment:
         description: Target environment
         type: choice
         options: [dev, uat]
-        default: uat
+        default: dev
+      webkit:
+        description: Also run on WebKit
+        type: boolean
+        default: false
 jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    env:
+      # Empty string keeps the webkit project out of the config
+      WEBKIT: ${{ (github.event_name == 'schedule' || inputs.webkit) && '1' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
       - run: npm ci
-      - run: npx playwright install --with-deps chromium webkit
+      - run: npx playwright install --with-deps chromium ${{ env.WEBKIT && 'webkit' || '' }}
       - run: npx playwright test
         env:
-          ENV: ${{ inputs.environment || 'uat' }}
-          # Add secrets used by tests here, e.g.
-          # UAT_USER_PASSWORD: ${{ secrets.UAT_USER_PASSWORD }}
+          ENV: ${{ inputs.environment || 'dev' }}
+          DEV_DLT_USER_EMAIL: ${{ secrets.DEV_DLT_USER_EMAIL }}
+          DEV_DLT_USER_PASSWORD: ${{ secrets.DEV_DLT_USER_PASSWORD }}
+          UAT_DLT_USER_EMAIL: ${{ secrets.UAT_DLT_USER_EMAIL }}
+          UAT_DLT_USER_PASSWORD: ${{ secrets.UAT_DLT_USER_PASSWORD }}
+          DEV_NORMAL_USER_EMAIL: ${{ secrets.DEV_NORMAL_USER_EMAIL }}
+          DEV_NORMAL_USER_PASSWORD: ${{ secrets.DEV_NORMAL_USER_PASSWORD }}
+          DEV_TSD_USER_EMAIL: ${{ secrets.DEV_TSD_USER_EMAIL }}
+          DEV_TSD_USER_PASSWORD: ${{ secrets.DEV_TSD_USER_PASSWORD }}
+          UAT_NORMAL_USER_EMAIL: ${{ secrets.UAT_NORMAL_USER_EMAIL }}
+          UAT_NORMAL_USER_PASSWORD: ${{ secrets.UAT_NORMAL_USER_PASSWORD }}
+          UAT_TSD_USER_EMAIL: ${{ secrets.UAT_TSD_USER_EMAIL }}
+          UAT_TSD_USER_PASSWORD: ${{ secrets.UAT_TSD_USER_PASSWORD }}
+          DEV_EOD_S3_REGION: ${{ secrets.DEV_EOD_S3_REGION }}
+          DEV_EOD_S3_BUCKET: ${{ secrets.DEV_EOD_S3_BUCKET }}
+          DEV_EOD_S3_PREFIX: ${{ secrets.DEV_EOD_S3_PREFIX }}
+          DEV_EOD_S3_ACCESS_KEY_ID: ${{ secrets.DEV_EOD_S3_ACCESS_KEY_ID }}
+          DEV_EOD_S3_SECRET_ACCESS_KEY: ${{ secrets.DEV_EOD_S3_SECRET_ACCESS_KEY }}
+          DEV_EOD_COMPANY_ACCOUNT: ${{ secrets.DEV_EOD_COMPANY_ACCOUNT }}
+          UAT_EOD_S3_REGION: ${{ secrets.UAT_EOD_S3_REGION }}
+          UAT_EOD_S3_BUCKET: ${{ secrets.UAT_EOD_S3_BUCKET }}
+          UAT_EOD_S3_PREFIX: ${{ secrets.UAT_EOD_S3_PREFIX }}
+          UAT_EOD_S3_ACCESS_KEY_ID: ${{ secrets.UAT_EOD_S3_ACCESS_KEY_ID }}
+          UAT_EOD_S3_SECRET_ACCESS_KEY: ${{ secrets.UAT_EOD_S3_SECRET_ACCESS_KEY }}
+          UAT_EOD_COMPANY_ACCOUNT: ${{ secrets.UAT_EOD_COMPANY_ACCOUNT }}
+          DEV_DLT_HUID: ${{ secrets.DEV_DLT_HUID }}
+          DEV_DLT_SECRET_KEY: ${{ secrets.DEV_DLT_SECRET_KEY }}
+          UAT_DLT_HUID: ${{ secrets.UAT_DLT_HUID }}
+          UAT_DLT_SECRET_KEY: ${{ secrets.UAT_DLT_SECRET_KEY }}
+          DEV_DLT_B_USER_EMAIL: ${{ secrets.DEV_DLT_B_USER_EMAIL }}
+          DEV_DLT_B_USER_PASSWORD: ${{ secrets.DEV_DLT_B_USER_PASSWORD }}
+          DEV_DLT_B_HUID: ${{ secrets.DEV_DLT_B_HUID }}
+          DEV_DLT_B_SECRET_KEY: ${{ secrets.DEV_DLT_B_SECRET_KEY }}
+          UAT_DLT_B_USER_EMAIL: ${{ secrets.UAT_DLT_B_USER_EMAIL }}
+          UAT_DLT_B_USER_PASSWORD: ${{ secrets.UAT_DLT_B_USER_PASSWORD }}
+          DEV_DROPOFF_USER_EMAIL: ${{ secrets.DEV_DROPOFF_USER_EMAIL }}
+          DEV_DROPOFF_USER_PASSWORD: ${{ secrets.DEV_DROPOFF_USER_PASSWORD }}
+          UAT_DROPOFF_USER_EMAIL: ${{ secrets.UAT_DROPOFF_USER_EMAIL }}
+          UAT_DROPOFF_USER_PASSWORD: ${{ secrets.UAT_DROPOFF_USER_PASSWORD }}
+          UAT_DLT_B_HUID: ${{ secrets.UAT_DLT_B_HUID }}
+          UAT_DLT_B_SECRET_KEY: ${{ secrets.UAT_DLT_B_SECRET_KEY }}
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report-${{ inputs.environment || 'uat' }}
+          name: playwright-report-${{ inputs.environment || 'dev' }}
           path: playwright-report/
           retention-days: 30

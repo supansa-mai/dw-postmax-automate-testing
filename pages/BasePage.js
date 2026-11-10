@@ -2,10 +2,45 @@ class BasePage {
   /** @param {import('@playwright/test').Page} page */
   constructor(page) {
     this.page = page;
+    // Top menu of the User Portal; the logo link has no text
+    this.menuLinks = page.getByRole('banner').getByRole('link').filter({ hasText: /\S/ });
+
+    // Shown in place of a page the user's company flag (DLT / TSD) does not allow, e.g. opened by URL
+    this.accessDeniedTitle = page.getByText('ไม่สามารถเข้าถึงหน้านี้ได้', { exact: true });
+    this.accessDeniedMessage = page.getByText('เนื้อหาที่คุณต้องการอาจถูกย้าย ลบออก หรือจำกัดสิทธิ์การเข้าถึง');
+    this.backToHomeButton = page.getByRole('button', { name: 'กลับสู่หน้าหลัก' })
+      .or(page.getByRole('link', { name: 'กลับสู่หน้าหลัก' }));
   }
 
   async goto(path = '') {
     await this.page.goto(path);
+  }
+
+  menuLink(name) {
+    return this.menuLinks.filter({ hasText: name });
+  }
+
+  /** Profile icon (last icon of the top menu) → ออกจากระบบ; lands on the login page, localStorage is kept */
+  async logout() {
+    await this.page.getByRole('banner').first().locator('svg').last().click();
+    await this.page.getByRole('menuitem', { name: 'ออกจากระบบ' }).click();
+    await this.page.waitForURL(/log-in/);
+  }
+
+  /** Value shown next to a label in a detail section, e.g. "สถานะการฝากส่ง" */
+  field(label) {
+    return this.page.getByText(label, { exact: true }).locator('xpath=../following-sibling::*[1]');
+  }
+
+  /** Body rows of a plain (non-grid) table as cell texts, e.g. [['EMS', '3'], ['รวมทั้งหมด', '3']] */
+  async tableRows(table) {
+    return table.getByRole('rowgroup').last().getByRole('row')
+      .evaluateAll((rows) => rows.map((r) => [...r.querySelectorAll('td, [role=cell]')].map((c) => c.innerText.trim())));
+  }
+
+  /** The menu item of the current page is shown in bold */
+  menuLabel(name) {
+    return this.menuLink(name).locator('p');
   }
 }
 
