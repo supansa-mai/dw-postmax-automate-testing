@@ -35,10 +35,10 @@ jobs:
       - run: npx playwright test
         env:
           ENV: ${{ inputs.environment || 'dev' }}
-          DEV_USER_EMAIL: ${{ secrets.DEV_USER_EMAIL }}
-          DEV_USER_PASSWORD: ${{ secrets.DEV_USER_PASSWORD }}
-          UAT_USER_EMAIL: ${{ secrets.UAT_USER_EMAIL }}
-          UAT_USER_PASSWORD: ${{ secrets.UAT_USER_PASSWORD }}
+          DEV_DLT_USER_EMAIL: ${{ secrets.DEV_DLT_USER_EMAIL }}
+          DEV_DLT_USER_PASSWORD: ${{ secrets.DEV_DLT_USER_PASSWORD }}
+          UAT_DLT_USER_EMAIL: ${{ secrets.UAT_DLT_USER_EMAIL }}
+          UAT_DLT_USER_PASSWORD: ${{ secrets.UAT_DLT_USER_PASSWORD }}
           DEV_NORMAL_USER_EMAIL: ${{ secrets.DEV_NORMAL_USER_EMAIL }}
           DEV_NORMAL_USER_PASSWORD: ${{ secrets.DEV_NORMAL_USER_PASSWORD }}
           DEV_TSD_USER_EMAIL: ${{ secrets.DEV_TSD_USER_EMAIL }}
@@ -69,6 +69,10 @@ jobs:
           DEV_DLT_B_SECRET_KEY: ${{ secrets.DEV_DLT_B_SECRET_KEY }}
           UAT_DLT_B_USER_EMAIL: ${{ secrets.UAT_DLT_B_USER_EMAIL }}
           UAT_DLT_B_USER_PASSWORD: ${{ secrets.UAT_DLT_B_USER_PASSWORD }}
+          DEV_DROPOFF_USER_EMAIL: ${{ secrets.DEV_DROPOFF_USER_EMAIL }}
+          DEV_DROPOFF_USER_PASSWORD: ${{ secrets.DEV_DROPOFF_USER_PASSWORD }}
+          UAT_DROPOFF_USER_EMAIL: ${{ secrets.UAT_DROPOFF_USER_EMAIL }}
+          UAT_DROPOFF_USER_PASSWORD: ${{ secrets.UAT_DROPOFF_USER_PASSWORD }}
           UAT_DLT_B_HUID: ${{ secrets.UAT_DLT_B_HUID }}
           UAT_DLT_B_SECRET_KEY: ${{ secrets.UAT_DLT_B_SECRET_KEY }}
       - uses: actions/upload-artifact@v4

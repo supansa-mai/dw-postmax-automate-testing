@@ -427,7 +427,7 @@ test.describe('TS06-TC10 step 9 Log out แล้ว Log in ใหม่บน b
   });
 
   test.beforeEach(async ({ loginPage, createFutureItemPage }) => {
-    await loginPage.loginAs(env.user, 'USER_EMAIL / USER_PASSWORD');
+    await loginPage.loginAs(env.user, 'DLT_USER_EMAIL / DLT_USER_PASSWORD');
     await createFutureItemPage.goto();
   });
 
@@ -436,7 +436,7 @@ test.describe('TS06-TC10 step 9 Log out แล้ว Log in ใหม่บน b
     await p.scanItems(items);
 
     await basePage.logout();
-    await loginPage.loginAs(env.user, 'USER_EMAIL / USER_PASSWORD');
+    await loginPage.loginAs(env.user, 'DLT_USER_EMAIL / DLT_USER_PASSWORD');
     await p.goto();
     await expect(p.total).toHaveText('ทั้งหมด 2 รายการ');
     for (const { trackingNumber } of items) await expect(p.row(trackingNumber)).toBeVisible();

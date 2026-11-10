@@ -25,8 +25,9 @@ const GROUPS = {
   ordered: { paid: 1 },
   orderedElsewhere: { paid: 2 },
   cancelledElsewhere: { paid: 2 },
-  // Put in the shared order below
+  // Put in the orders below
   order: { paid: 3 },
+  receiveOrder: { paid: 2 },
 };
 
 test('upload EOD file and wait for the reconcile job', async ({ request, futureItemsApi, futureItemsPage, createFutureItemPage }) => {
@@ -76,14 +77,18 @@ test('upload EOD file and wait for the reconcile job', async ({ request, futureI
     await futureItemsPage.waitUntilPaid({ batchRef, date: thaiDate(), items, fileName });
   }
 
-  // One order for the specs that only read it (orders-future-items.spec.js); a spec that changes an order's status,
-  // e.g. receiving it at drop off, creates its own
-  const { batchRef, paid: items } = groups.order;
-  await createFutureItemPage.goto();
-  await createFutureItemPage.scanItems(items);
-  await createFutureItemPage.createOrder();
-  await expect(createFutureItemPage.toast).toContainText(/สร้างใบนำส่งสำเร็จ เลขที่เอกสาร: PM\d+/);
-  const [number] = (await createFutureItemPage.toast.innerText()).match(/PM\d+/);
+  async function createOrder({ batchRef, paid: items }) {
+    await createFutureItemPage.goto();
+    await createFutureItemPage.scanItems(items);
+    await createFutureItemPage.createOrder();
+    await expect(createFutureItemPage.toast).toContainText(/สร้างใบนำส่งสำเร็จ เลขที่เอกสาร: PM\d+/);
+    const [number] = (await createFutureItemPage.toast.innerText()).match(/PM\d+/);
+    return { number, batchRef, items };
+  }
+  // `order` stays as created for the specs that only read it (orders-future-items.spec.js, drop-off/dlt-orders.spec.js);
+  // `receiveOrder` is received at drop off by drop-off/dlt-orders.spec.js (TS10-TC04)
+  const order = await createOrder(groups.order);
+  const receiveOrder = await createOrder(groups.receiveOrder);
 
-  saveEodItems({ fileName, earlyRefCode, groups, shortRef, otherCompany, order: { number, batchRef, items } });
+  saveEodItems({ fileName, earlyRefCode, groups, shortRef, otherCompany, order, receiveOrder });
 });

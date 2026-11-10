@@ -33,7 +33,7 @@ URLs and per-env settings live in `config/environments.js` (committed). Pick one
 Add a new env by adding a key to that file.
 
 Secrets (credentials, tokens) go in `.env` (git-ignored; copy from `.env.example`).
-Prefix keys with the env name when values differ per env, e.g. `DEV_USER_PASSWORD`.
+Prefix keys with the env name when values differ per env, e.g. `DEV_DLT_USER_PASSWORD`.
 
 Combine with other flags: `npm run test:dev -- --project=chromium --headed`
 
@@ -44,7 +44,7 @@ Add any secrets the tests need as repo secrets and map them in the workflow's `e
 ## UI tests
 
 UI projects (`chromium`, and `webkit` when `WEBKIT=1`) depend on the `setup` project (`tests/auth.setup.js`), which logs in to the
-User Portal once with `USER_EMAIL` / `USER_PASSWORD` of the env (a DLT company account without 2FA) and saves the
+User Portal once with `DLT_USER_EMAIL` / `DLT_USER_PASSWORD` of the env (a DLT company account without 2FA) and saves the
 session to `playwright/.auth/user.json`. Without those credentials the setup fails, so the UI tests do not run. Specs start already logged in; use
 `test.use({ storageState: { cookies: [], origins: [] } })` for logged-out tests.
 

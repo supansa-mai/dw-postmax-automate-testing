@@ -1,25 +1,9 @@
-const fs = require('fs');
 const { test, expect } = require('../../../fixtures');
 const { readEodItems } = require('../../../helpers/eodItems');
+const { readDownload, parseCsv, countBy, grams } = require('../../../helpers/orderData');
 const { thaiDate } = require('../../../helpers/thaiDate');
 
 const TODAY = thaiDate();
-
-async function readDownload(download) {
-  return fs.promises.readFile(await download.path());
-}
-
-// Plain split is enough: generated names and addresses never contain commas
-function parseCsv(buffer) {
-  const [header, ...lines] = buffer.toString('utf8').replace(/^\uFEFF/, '').trim().split(/\r?\n/).map((line) => line.split(','));
-  return lines.map((cells) => Object.fromEntries(header.map((name, i) => [name, cells[i]])));
-}
-
-function countBy(values) {
-  return [...values.reduce((counts, v) => counts.set(v, (counts.get(v) ?? 0) + 1), new Map())];
-}
-
-const grams = (weight) => Number(weight).toFixed(2);
 
 // รายงานการฝากส่ง groups Bangkok and its vicinity (postal codes 10xxx-12xxx) as กรุงเทพมหานคร, seen on dev
 const AREAS = ['กรุงเทพมหานคร', 'ต่างจังหวัด'];

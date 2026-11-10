@@ -11,7 +11,7 @@ const environments = {
     apiURL: 'https://api-dev.thaipostmax.datawow.io',
     timeout: 30000,
     // company_dlt_mappings (CPM-1820): the company code written in the EOD file header and how many digits of
-    // reference 1 (from the 1st) are the refCode; dlt = the company of USER_EMAIL / DLT_HUID, dltB = DLT_B_*
+    // reference 1 (from the 1st) are the refCode; dlt = the company of DLT_USER_EMAIL / DLT_HUID, dltB = DLT_B_*
     eodCompanies: {
       dlt: { companyCode: '27744', refDigits: 10 },
       dltB: { companyCode: '27743', refDigits: 9 },
@@ -53,8 +53,8 @@ const env = {
   ...environments[ENV_NAME],
   // User Portal account of a DLT company (is_dlt), used by UI tests via tests/auth.setup.js
   user: {
-    email: process.env[`${prefix}_USER_EMAIL`],
-    password: process.env[`${prefix}_USER_PASSWORD`],
+    email: process.env[`${prefix}_DLT_USER_EMAIL`],
+    password: process.env[`${prefix}_DLT_USER_PASSWORD`],
   },
   // User Portal accounts without is_dlt, for the menu access checks (SCENARIO 1)
   normalUser: {
@@ -64,6 +64,11 @@ const env = {
   tsdUser: {
     email: process.env[`${prefix}_TSD_USER_EMAIL`],
     password: process.env[`${prefix}_TSD_USER_PASSWORD`],
+  },
+  // Drop Off staff of the branch the DLT company hands its orders in at (SCENARIO 10)
+  dropOffUser: {
+    email: process.env[`${prefix}_DROPOFF_USER_EMAIL`],
+    password: process.env[`${prefix}_DROPOFF_USER_PASSWORD`],
   },
   dlt: dltCredentialsOf(ENV_NAME),
   // Optional second DLT company (company B): checks that each company sees only its own items (TS01-TC04)

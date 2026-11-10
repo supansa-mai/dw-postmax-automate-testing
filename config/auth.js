@@ -6,4 +6,7 @@ const USER_STATE = path.join(__dirname, '..', 'playwright', '.auth', 'user.json'
 // Future items prepared by tests/eod.setup.js (git-ignored), read by the specs of the eod project
 const EOD_STATE = path.join(__dirname, '..', 'playwright', '.eod', 'items.json');
 
-module.exports = { USER_STATE, EOD_STATE };
+// Saved Drop Off session (git-ignored), written by tests/auth.setup.js
+const DROPOFF_STATE = path.join(__dirname, '..', 'playwright', '.auth', 'dropoff.json');
+
+module.exports = { USER_STATE, DROPOFF_STATE, EOD_STATE };

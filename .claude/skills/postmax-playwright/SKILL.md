@@ -26,9 +26,12 @@ commands, test data rules, domain and the sheet / Jira / Figma sources; this fil
     at drop off, cancels an item) creates its own instead, so the read-only specs see a stable state;
   - sharing inside one spec is fine for a small follow-up check (TS05-TC02 checks the item TS06-TC05 already put in
     an order). When the choice is "fewer real orders" vs "independent tests", say so in the plan and let the user
-    pick. Orders per run today: 3 in create-order + 1 shared = 4;
+    pick. Orders per run today: 3 in create-order + 1 shared + 1 received at drop off (`receiveOrder`) = 5;
   - `create-order-future-items.spec.js` runs its tests in order (`mode: 'default'`), since they share the scanned
     list in localStorage and the per-huid rate limit.
+- Drop Off specs (`tests/drop-off/`) run in `eod` with `test.use({ storageState: DROPOFF_STATE })` (written by
+  `tests/auth.setup.js`); to see what the DLT customer sees, open the User Portal in a second context with `USER_STATE`.
+  Receiving: detail page วิธีการนำส่งเข้าสู่ระบบ "ทั้งหมด" -> ยืนยัน -> `/scan/all` summary -> รับฝาก -> confirm dialog.
 - Don't run `eod` specs on UAT unless the user says so: they create real orders there.
 
 ## PostMax UI traps
