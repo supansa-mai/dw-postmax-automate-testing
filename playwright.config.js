@@ -30,7 +30,9 @@ module.exports = defineConfig({
     timezoneId: 'Asia/Bangkok',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    // VIDEO=1 records every test, slowed down so it can be followed (SLOWMO=ms to change, 0 to turn off)
+    video: process.env.VIDEO ? 'on' : 'retain-on-failure',
+    launchOptions: { slowMo: Number(process.env.SLOWMO ?? (process.env.VIDEO ? 500 : 0)) },
   },
   projects: [
     // API tests need no browser, so they run once in their own project.

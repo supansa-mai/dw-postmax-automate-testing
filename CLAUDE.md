@@ -20,6 +20,7 @@ npm run test:api                     # API project only (no browser)
 WORKERS=4 npm test                   # local default is 2 workers (CI: 1) so the shared dev DB pool isn't exhausted
 npx playwright test tests/api/create-future-items.spec.js -g "TS02-TC07"   # single file / test by title
 npm run test:uat -- --project=api -g "rate limit"                          # combine env + flags
+VIDEO=1 npm run test:eod             # record a video of every test, slowed by 500ms per action (SLOWMO=ms, 0 = off)
 npm run report                       # open last HTML report
 ```
 

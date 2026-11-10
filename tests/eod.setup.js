@@ -28,6 +28,7 @@ const GROUPS = {
   // Put in the orders below
   order: { paid: 3 },
   receiveOrder: { paid: 2 },
+  partialReceiveOrder: { paid: 3 },
 };
 
 test('upload EOD file and wait for the reconcile job', async ({ request, futureItemsApi, futureItemsPage, createFutureItemPage }) => {
@@ -86,9 +87,10 @@ test('upload EOD file and wait for the reconcile job', async ({ request, futureI
     return { number, batchRef, items };
   }
   // `order` stays as created for the specs that only read it (orders-future-items.spec.js, drop-off/dlt-orders.spec.js);
-  // `receiveOrder` is received at drop off by drop-off/dlt-orders.spec.js (TS10-TC04)
+  // `receiveOrder` / `partialReceiveOrder` are received at drop off, in full / in part, by drop-off/dlt-orders.spec.js
   const order = await createOrder(groups.order);
   const receiveOrder = await createOrder(groups.receiveOrder);
+  const partialReceiveOrder = await createOrder(groups.partialReceiveOrder);
 
-  saveEodItems({ fileName, earlyRefCode, groups, shortRef, otherCompany, order, receiveOrder });
+  saveEodItems({ fileName, earlyRefCode, groups, shortRef, otherCompany, order, receiveOrder, partialReceiveOrder });
 });

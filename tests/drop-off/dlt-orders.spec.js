@@ -13,12 +13,17 @@ const TODAY = thaiDate();
 const FROM_FUTURE_ITEMS = 'จากรายการล่วงหน้า';
 const CREATED_TODAY = new RegExp(`^${TODAY} - \\d{2}:\\d{2}$`);
 
-/** The DLT user's User Portal next to the Drop Off page, to see what the customer sees */
+/** The DLT user's User Portal next to the Drop Off page, to see what the customer sees; VIDEO=1 records it too */
 async function openPortal(browser) {
-  const context = await browser.newContext({ storageState: USER_STATE, baseURL: `${env.baseURL}/`, timezoneId: 'Asia/Bangkok' });
+  const video = process.env.VIDEO ? { recordVideo: { dir: test.info().outputPath('portal') } } : {};
+  const context = await browser.newContext({ storageState: USER_STATE, baseURL: `${env.baseURL}/`, timezoneId: 'Asia/Bangkok', ...video });
   const page = await context.newPage();
   return {
     context,
+    async close() {
+      await context.close();
+      if (page.video()) await test.info().attach('portal video', { path: await page.video().path(), contentType: 'video/webm' });
+    },
     ordersPage: new OrdersPage(page),
     orderDetailPage: new OrderDetailPage(page),
     orderItemsPage: new OrderItemsPage(page),
@@ -33,9 +38,11 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
   let order;
   /** Created by tests/eod.setup.js, received at drop off by TS10-TC04 */
   let receiveOrder;
+  /** Created by tests/eod.setup.js, received in part by TS10-TC06 */
+  let partialReceiveOrder;
 
   test.beforeAll(() => {
-    ({ order, receiveOrder } = readEodItems());
+    ({ order, receiveOrder, partialReceiveOrder } = readEodItems());
   });
 
   test.describe('TS10-TC01 ตรวจสอบรายการใบนำส่ง DLT ที่ drop off', () => {
@@ -44,7 +51,7 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
       await portal.profilePage.goto();
       await expect(portal.profilePage.title).toBeVisible();
       const { name } = await portal.profilePage.sender();
-      await portal.context.close();
+      await portal.close();
 
       await p.goto();
       await p.search(order.number);
@@ -172,7 +179,7 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
         await portal.ordersPage.openDetail(receiveOrder.number);
         await expect(portal.orderDetailPage.field('สถานะการฝากส่ง')).toHaveText('รับฝากสำเร็จ');
         await expect(portal.orderDetailPage.field('วันที่/เวลาที่ปณ.ได้รับ')).toHaveText(CREATED_TODAY);
-        await portal.context.close();
+        await portal.close();
       });
     });
 
@@ -215,6 +222,68 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
         }
         await context.close();
       });
+    });
+  });
+
+  test.describe('TS10-TC06 รับฝากใบนำส่ง DLT ไม่ครบ', () => {
+    test('สแกนรับฝากบางชิ้นแล้วสิ้นสุดการรับฝาก ชิ้นที่เหลือเป็นยกเลิกรับฝาก', async ({ page, browser, dropOffOrdersPage: p, dropOffOrderDetailPage: d }) => {
+      test.slow();
+      const { number, batchRef, items } = partialReceiveOrder;
+      const received = items.slice(0, -1);
+      const [left] = items.slice(-1);
+      const reason = 'ขอแก้ไขจ่าหน้า';
+      const detail = 'AUTO รับฝากไม่ครบ';
+
+      await p.goto();
+      await p.search(number);
+      await p.openDetail(number);
+      await d.waitForOrder();
+      const detailUrl = page.url();
+
+      await d.chooseScanEach();
+      await d.scan(received.map((item) => item.trackingNumber));
+      await d.primaryButton.click();
+      await expect(d.receiveDialog).toContainText(`${received.length} ชิ้น`);
+      await expect(d.mismatchWarning).toBeVisible();
+      await d.receiveDialog.getByRole('button', { name: 'ยืนยัน' }).click();
+      await expect(d.toast).toHaveText('ส่งรายการเข้าสู่ระบบสำเร็จ');
+
+      await expect(async () => {
+        await page.goto(detailUrl);
+        await d.waitForOrder();
+        await expect(d.field('สถานะ')).toHaveText('กำลังรับฝาก');
+        await expect(d.field('รับฝากแล้ว')).toHaveText(`${received.length} ชิ้น`);
+      }).toPass({ timeout: 60000 });
+
+      await d.finishButton.click();
+      await d.finishDialog.getByRole('button', { name: 'ยืนยัน' }).click();
+      await expect(d.finishDialog).toContainText('กรุณาเลือกสาเหตุที่รับฝากไม่ครบ');
+      await d.finishDialog.getByRole('button', { name: 'ยกเลิก' }).click();
+      await d.finishReceiving(reason, detail);
+      await expect(d.toast).toHaveText('สิ้นสุดการรับฝากสำเร็จ');
+
+      await expect(async () => {
+        await page.goto(detailUrl);
+        await d.waitForOrder();
+        await expect(d.field('สถานะ')).toHaveText('รับฝากสำเร็จ');
+      }).toPass({ timeout: 60000 });
+      await expect(d.field('รับฝากแล้ว')).toHaveText(`${received.length} ชิ้น`);
+      await expect(d.field('สาเหตุที่รับฝากไม่ครบ')).toHaveText(reason);
+      await expect(d.field('รายละเอียดเพิ่มเติม')).toHaveText(detail);
+
+      const portal = await openPortal(browser);
+      await portal.ordersPage.goto();
+      await portal.ordersPage.openDetail(number);
+      await expect(portal.orderDetailPage.field('สถานะการฝากส่ง')).toHaveText('รับฝากสำเร็จ');
+      await expect(portal.orderDetailPage.field('รับฝากแล้ว')).toHaveText(`${received.length} ชิ้น`);
+      await expect(portal.orderDetailPage.field('สาเหตุที่รับฝากไม่ครบ')).toHaveText(reason);
+      await portal.orderDetailPage.itemsButton.click();
+      const rows = await portal.orderItemsPage.rowValues();
+      expect(rows.map((row) => [row.trackingNumber, row.status, row.ref1]).sort()).toEqual([
+        ...received.map((item) => [item.trackingNumber, 'รับฝาก', batchRef]),
+        [left.trackingNumber, 'ยกเลิกรับฝาก', batchRef],
+      ].sort());
+      await portal.close();
     });
   });
 });
