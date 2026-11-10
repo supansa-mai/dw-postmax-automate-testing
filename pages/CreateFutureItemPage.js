@@ -61,6 +61,22 @@ class CreateFutureItemPage extends BasePage {
     }
   }
 
+  /** The scanned list in localStorage `dlt_scanned_items_<company>_<user>`: `{ firstScannedAt, items }`, or null */
+  async storedScan() {
+    return this.page.evaluate(() => {
+      const key = Object.keys(localStorage).find((k) => k.startsWith('dlt_scanned_items_'));
+      return key ? JSON.parse(localStorage.getItem(key)) : null;
+    });
+  }
+
+  /** Moves the first scan back in time (ms since epoch) to check the 1-day TTL without waiting a day */
+  async setFirstScannedAt(time) {
+    await this.page.evaluate((firstScannedAt) => {
+      const key = Object.keys(localStorage).find((k) => k.startsWith('dlt_scanned_items_'));
+      localStorage.setItem(key, JSON.stringify({ ...JSON.parse(localStorage.getItem(key)), firstScannedAt }));
+    }, time);
+  }
+
   row(trackingNumber) {
     return this.rows.filter({ has: this.page.getByRole('gridcell', { name: trackingNumber, exact: true }) });
   }

@@ -233,6 +233,36 @@ test.describe('Create order from future items (DLT)', () => {
       await expect(other.createPage.total).toHaveText('ทั้งหมด 0 รายการ');
       await other.context.close();
     });
+
+    test('เก็บเวลาที่สแกนชิ้นแรก ไม่เปลี่ยนเมื่อสแกนเพิ่มหรือ refresh', async ({ createFutureItemPage: p }) => {
+      const [first, second] = groups.scan.paid;
+      const before = Date.now();
+      await p.scanItems([first]);
+      const { firstScannedAt, items } = await p.storedScan();
+      expect(firstScannedAt).toBeGreaterThanOrEqual(before);
+      expect(firstScannedAt).toBeLessThanOrEqual(Date.now());
+      expect(items.map((item) => item.trackingNumber)).toEqual([first.trackingNumber]);
+
+      await p.scanItems([second]);
+      expect(await p.storedScan()).toMatchObject({ firstScannedAt, items: [{}, {}] });
+      await p.page.reload();
+      await expect(p.total).toHaveText('ทั้งหมด 2 รายการ');
+      expect((await p.storedScan()).firstScannedAt).toBe(firstScannedAt);
+    });
+
+    test('รายการที่สแกนไว้เกิน 1 วันถูกล้าง', async ({ createFutureItemPage: p }) => {
+      const hour = 60 * 60 * 1000;
+      await p.scanItems(groups.scan.paid.slice(0, 2));
+
+      await p.setFirstScannedAt(Date.now() - 23 * hour);
+      await p.page.reload();
+      await expect(p.total).toHaveText('ทั้งหมด 2 รายการ');
+
+      await p.setFirstScannedAt(Date.now() - 24 * hour - 60 * 1000);
+      await p.page.reload();
+      await expect(p.total).toHaveText('ทั้งหมด 0 รายการ');
+      await expect(p.emptyState).toBeVisible();
+    });
   });
 
   test.describe('TS07-TC01 ตรวจสอบปุ่มลบรายการ', () => {
