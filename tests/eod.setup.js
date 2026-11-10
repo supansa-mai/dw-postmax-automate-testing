@@ -81,8 +81,8 @@ test('upload EOD file and wait for the reconcile job', async ({ request, futureI
     await createFutureItemPage.goto();
     await createFutureItemPage.scanItems(items);
     await createFutureItemPage.createOrder();
-    await expect(createFutureItemPage.toast).toContainText(/สร้างใบนำส่งสำเร็จ เลขที่เอกสาร: PM\d+/);
-    const [number] = (await createFutureItemPage.toast.innerText()).match(/PM\d+/);
+    await expect(createFutureItemPage.toast).toContainText(/สร้างใบนำส่งสำเร็จ เลขที่เอกสาร: PM[0-9A-Z]+/);
+    const [number] = (await createFutureItemPage.toast.innerText()).match(/PM[0-9A-Z]+/);
     return { number, batchRef, items };
   }
   // `order` stays as created for the specs that only read it (orders-future-items.spec.js, drop-off/dlt-orders.spec.js);

@@ -21,6 +21,10 @@ const environments = {
     baseURL: 'https://uat.thaipostmax.datawow.io/th',
     apiURL: 'https://api-uat.thaipostmax.datawow.io',
     timeout: 30000,
+    eodCompanies: {
+      dlt: { companyCode: '27744', refDigits: 10 },
+      dltB: { companyCode: '27743', refDigits: 9 },
+    },
   },
   local: {
     baseURL: 'http://localhost:3000',

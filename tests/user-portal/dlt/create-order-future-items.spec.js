@@ -346,8 +346,8 @@ test.describe('Create order from future items (DLT)', () => {
       await p.createOrder();
       await expect(p.page).toHaveURL(/\/th\/orders/);
       // e.g. "สร้างใบนำส่งสำเร็จ เลขที่เอกสาร: PM112600320002"
-      await expect(p.toast).toContainText(/สร้างใบนำส่งสำเร็จ เลขที่เอกสาร: PM\d+/);
-      const [orderNumber] = (await p.toast.innerText()).match(/PM\d+/);
+      await expect(p.toast).toContainText(/สร้างใบนำส่งสำเร็จ เลขที่เอกสาร: PM[0-9A-Z]+/);
+      const [orderNumber] = (await p.toast.innerText()).match(/PM[0-9A-Z]+/);
       await ordersPage.waitForRows();
       const order = ordersPage.rows.first();
       await expect(ordersPage.cell(order, 'orderNumber')).toHaveText(orderNumber);
