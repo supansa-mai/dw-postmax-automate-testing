@@ -69,7 +69,6 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
       await expect(d.title).toHaveText(`รายละเอียดใบนำส่ง : ${order.number}`);
       await expect(d.field('สถานะ')).toHaveText('รอรับฝาก');
       await expect(d.field('หมายเลขใบนำส่ง')).toHaveText(order.number);
-      // CPM-1808: was "-"
       await expect(d.field('หมายเลขอ้างอิง')).toHaveText(FROM_FUTURE_ITEMS);
       await expect(d.field('เตรียมฝากส่ง')).toHaveText(`${count} ชิ้น`);
       await expect(d.field('รับฝากแล้ว')).toHaveText('0 ชิ้น');
@@ -117,11 +116,9 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
           'ประเทศ': 'Thailand',
           'รหัสไปรษณีย์': item.receiverPostalCode,
           'พื้นที่พิเศษ': '-',
-          // CPM-1806: leading 0 was dropped
           'เบอร์ติดต่อ': item.receiverPhone,
           'อีเมล': item.receiverEmail,
           'น้ำหนักต่อชิ้น (กรัม)': undefined,
-          // CPM-1806: was Y
           'ประกันภัย': 'N',
           'มูลค่าประกัน': '0',
           'หมายเลขอ้างอิง 1': order.batchRef,
@@ -133,12 +130,10 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
   });
 
   test.describe('Receive at drop off', () => {
-    // TS10-TC05 checks the order TS10-TC04 received
     test.describe.configure({ mode: 'serial' });
 
     test.describe('TS10-TC04 ตรวจสอบการนำเข้าข้อมูลใบนำส่ง DLT', () => {
       test('รับฝากทั้งใบ สถานะเป็นรับฝากสำเร็จทั้ง drop off และการฝากส่งของฉัน', async ({ browser, dropOffOrdersPage: p, dropOffOrderDetailPage: d }) => {
-        // Receiving, then waiting for the status in two apps, takes longer than the default 30s on dev
         test.slow();
         const count = String(receiveOrder.items.length);
         await p.goto();
@@ -159,7 +154,6 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
         await d.receiveDialog.getByRole('button', { name: 'ยืนยัน' }).click();
         await expect(d.toast).toHaveText('ส่งรายการเข้าสู่ระบบสำเร็จ');
 
-        // The status is updated a few seconds after the toast, so reopen the list until it is
         await expect(async () => {
           await p.goto();
           await p.search(receiveOrder.number);
@@ -188,8 +182,6 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
         const { context, ordersPage, orderDetailPage: d, orderItemsPage } = await openPortal(browser);
         await ordersPage.goto();
         await ordersPage.openDetail(receiveOrder.number);
-
-        // CPM-1791: the section was missing
         await expect(d.deliverySection).toBeVisible();
         await expect(d.field('รับฝากแล้ว')).toHaveText(`${count} ชิ้น`);
         await expect(d.field('สาเหตุที่รับฝากไม่ครบ')).toHaveText('-');
@@ -206,7 +198,6 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
         const rows = await orderItemsPage.rowValues();
         expect(rows).toHaveLength(receiveOrder.items.length);
         for (const item of receiveOrder.items) {
-          // CPM-1809: ID was cut off
           expect(rows.find((row) => row.trackingNumber === item.trackingNumber)).toMatchObject({
             refId: item.refCode,
             status: 'รับฝาก',
