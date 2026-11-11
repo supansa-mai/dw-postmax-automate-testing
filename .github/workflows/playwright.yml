@@ -43,10 +43,18 @@ jobs:
           DEV_NORMAL_USER_PASSWORD: ${{ secrets.DEV_NORMAL_USER_PASSWORD }}
           DEV_TSD_USER_EMAIL: ${{ secrets.DEV_TSD_USER_EMAIL }}
           DEV_TSD_USER_PASSWORD: ${{ secrets.DEV_TSD_USER_PASSWORD }}
+          DEV_NORMAL_USER_HUID: ${{ secrets.DEV_NORMAL_USER_HUID }}
+          DEV_NORMAL_USER_SECRET_KEY: ${{ secrets.DEV_NORMAL_USER_SECRET_KEY }}
+          DEV_TSD_USER_HUID: ${{ secrets.DEV_TSD_USER_HUID }}
+          DEV_TSD_USER_SECRET_KEY: ${{ secrets.DEV_TSD_USER_SECRET_KEY }}
           UAT_NORMAL_USER_EMAIL: ${{ secrets.UAT_NORMAL_USER_EMAIL }}
           UAT_NORMAL_USER_PASSWORD: ${{ secrets.UAT_NORMAL_USER_PASSWORD }}
           UAT_TSD_USER_EMAIL: ${{ secrets.UAT_TSD_USER_EMAIL }}
           UAT_TSD_USER_PASSWORD: ${{ secrets.UAT_TSD_USER_PASSWORD }}
+          UAT_NORMAL_USER_HUID: ${{ secrets.UAT_NORMAL_USER_HUID }}
+          UAT_NORMAL_USER_SECRET_KEY: ${{ secrets.UAT_NORMAL_USER_SECRET_KEY }}
+          UAT_TSD_USER_HUID: ${{ secrets.UAT_TSD_USER_HUID }}
+          UAT_TSD_USER_SECRET_KEY: ${{ secrets.UAT_TSD_USER_SECRET_KEY }}
           DEV_EOD_S3_REGION: ${{ secrets.DEV_EOD_S3_REGION }}
           DEV_EOD_S3_BUCKET: ${{ secrets.DEV_EOD_S3_BUCKET }}
           DEV_EOD_S3_PREFIX: ${{ secrets.DEV_EOD_S3_PREFIX }}
@@ -71,8 +79,12 @@ jobs:
           UAT_DLT_B_USER_PASSWORD: ${{ secrets.UAT_DLT_B_USER_PASSWORD }}
           DEV_DROPOFF_USER_EMAIL: ${{ secrets.DEV_DROPOFF_USER_EMAIL }}
           DEV_DROPOFF_USER_PASSWORD: ${{ secrets.DEV_DROPOFF_USER_PASSWORD }}
+          DEV_ADMIN_EMAIL: ${{ secrets.DEV_ADMIN_EMAIL }}
+          DEV_ADMIN_PASSWORD: ${{ secrets.DEV_ADMIN_PASSWORD }}
           UAT_DROPOFF_USER_EMAIL: ${{ secrets.UAT_DROPOFF_USER_EMAIL }}
           UAT_DROPOFF_USER_PASSWORD: ${{ secrets.UAT_DROPOFF_USER_PASSWORD }}
+          UAT_ADMIN_EMAIL: ${{ secrets.UAT_ADMIN_EMAIL }}
+          UAT_ADMIN_PASSWORD: ${{ secrets.UAT_ADMIN_PASSWORD }}
           UAT_DLT_B_HUID: ${{ secrets.UAT_DLT_B_HUID }}
           UAT_DLT_B_SECRET_KEY: ${{ secrets.UAT_DLT_B_SECRET_KEY }}
       - uses: actions/upload-artifact@v4

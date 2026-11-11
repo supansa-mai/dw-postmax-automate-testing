@@ -60,19 +60,29 @@ const env = {
     email: process.env[`${prefix}_DLT_USER_EMAIL`],
     password: process.env[`${prefix}_DLT_USER_PASSWORD`],
   },
-  // User Portal accounts without is_dlt, for the menu access checks (SCENARIO 1)
+  // User Portal accounts without is_dlt and their companies' Public API key pairs (preloads); the normal
+  // company's key is also the "credential is not DLT" case of Create Future Items
   normalUser: {
     email: process.env[`${prefix}_NORMAL_USER_EMAIL`],
     password: process.env[`${prefix}_NORMAL_USER_PASSWORD`],
+    huid: process.env[`${prefix}_NORMAL_USER_HUID`],
+    secretKey: process.env[`${prefix}_NORMAL_USER_SECRET_KEY`],
   },
   tsdUser: {
     email: process.env[`${prefix}_TSD_USER_EMAIL`],
     password: process.env[`${prefix}_TSD_USER_PASSWORD`],
+    huid: process.env[`${prefix}_TSD_USER_HUID`],
+    secretKey: process.env[`${prefix}_TSD_USER_SECRET_KEY`],
   },
   // Drop Off staff of the branch the DLT company hands its orders in at (SCENARIO 10)
   dropOffUser: {
     email: process.env[`${prefix}_DROPOFF_USER_EMAIL`],
     password: process.env[`${prefix}_DROPOFF_USER_PASSWORD`],
+  },
+  // Back Office admin, reads the fee settings that order prices are checked against
+  admin: {
+    email: process.env[`${prefix}_ADMIN_EMAIL`],
+    password: process.env[`${prefix}_ADMIN_PASSWORD`],
   },
   dlt: dltCredentialsOf(ENV_NAME),
   // Optional second DLT company (company B): checks that each company sees only its own items (TS01-TC04)
@@ -95,11 +105,6 @@ const env = {
     companyAccount: process.env[`${prefix}_EOD_COMPANY_ACCOUNT`],
   },
   otherEnvDlt: otherEnvName && { envName: otherEnvName, ...dltCredentialsOf(otherEnvName) },
-  // Public API credential of a non-DLT customer (e.g. preloads), used for negative tests
-  nonDlt: {
-    huid: process.env[`${prefix}_NON_DLT_HUID`],
-    secretKey: process.env[`${prefix}_NON_DLT_SECRET_KEY`],
-  },
 };
 
 module.exports = { env, ENV_NAME };

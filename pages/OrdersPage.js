@@ -9,6 +9,7 @@ class OrdersPage extends BasePage {
     this.grid = page.getByRole('grid');
     this.rows = this.grid.locator('[role=rowgroup] [role=row]');
     this.scroller = page.locator('.MuiDataGrid-virtualScroller');
+    this.searchInput = page.getByRole('textbox', { name: 'ค้นหาหมายเลขใบนำส่ง' });
   }
 
   async goto() {
@@ -19,6 +20,34 @@ class OrdersPage extends BasePage {
   /** The orders API takes ~7s on dev (Nov 2026), longer than the default expect timeout */
   async waitForRows() {
     await expect(this.rows.first()).toBeVisible({ timeout: 30000 });
+  }
+
+  async search(orderNumber) {
+    await this.searchInput.fill(orderNumber);
+    await expect(this.rows).toHaveCount(1, { timeout: 30000 });
+    await expect(this.row(orderNumber)).toBeVisible();
+  }
+
+  /**
+   * Every cell of an order's row by field: trackingNumber, formattedRefNo, createdAt (TSD: documentType, orderName,
+   * documentTypeReserved, releaseDate), totalOrderItems, totalDroppedOffOrderItems, status. Read while scrolling right,
+   * since the grid only renders the columns in view
+   */
+  async rowValues(orderNumber) {
+    const row = this.row(orderNumber);
+    const values = {};
+    const width = await this.scroller.evaluate((el) => el.scrollWidth);
+    for (let x = 0; x <= width; x += 200) {
+      await this.scroller.evaluate((el, left) => {
+        el.scrollLeft = left;
+        return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      }, x);
+      Object.assign(values, Object.fromEntries(await row.locator('[data-field]')
+        .evaluateAll((cells) => cells.map((c) => [c.dataset.field, c.innerText.trim()]))));
+    }
+    await this.scroller.evaluate((el) => { el.scrollLeft = 0; });
+    delete values.id;
+    return values;
   }
 
   row(orderNumber) {

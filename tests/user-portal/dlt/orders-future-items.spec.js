@@ -2,6 +2,8 @@ const { test, expect } = require('../../../fixtures');
 const { readEodItems } = require('../../../helpers/eodItems');
 const { readDownload, parseCsv, countBy, grams } = require('../../../helpers/orderData');
 const { thaiDate } = require('../../../helpers/thaiDate');
+const { BackOfficeApi } = require('../../../helpers/backOfficeApi');
+const { expectedSummary, bySummaryKey, baht } = require('../../../helpers/pricing');
 
 const TODAY = thaiDate();
 
@@ -61,6 +63,28 @@ test.describe('Orders created from future items (DLT)', () => {
       const price = rows.reduce((sum, row) => sum + Number(row[6]), 0).toFixed(2);
       expect(total.slice(-3)).toEqual(['รวมทั้งหมด', count, price]);
       await expect(d.field('ราคารวมทั้งหมด')).toHaveText(`${price} บาท`);
+    });
+  });
+
+  test.describe('TS09-TC05 ตรวจสอบราคาต่อชิ้นของใบนำส่งจากรายการล่วงหน้า ตามค่าบริการใน Back Office', () => {
+    test('ราคาแต่ละรายการ = ค่าส่ง EMS + Plus DLT (+ พื้นที่พิเศษ)', async ({ page, browser, ordersPage, orderDetailPage: d }) => {
+      await ordersPage.goto();
+      await ordersPage.openDetail(order.number);
+      await expect(d.serviceTable.getByRole('row').last()).toContainText('รวมทั้งหมด');
+      const id = page.url().match(/orders\/(\d+)/)[1];
+
+      const backOffice = await BackOfficeApi.open(browser);
+      const fees = await backOffice.fees();
+      const items = order.items.map((item) => ({
+        type: 'EMS', service: 'PLUS_DLT', eAr: 'NON', weight: item.weight, postalCode: item.receiverPostalCode, address: item.receiverAddress,
+      }));
+      const expected = await expectedSummary(fees, items);
+      const { preloadedSummary } = await backOffice.order(id);
+      await backOffice.close();
+      expect(bySummaryKey(preloadedSummary)).toEqual(bySummaryKey(expected));
+
+      const total = expected.reduce((sum, row) => sum + Number(row.totalPrice), 0);
+      await expect(d.field('ราคารวมทั้งหมด')).toHaveText(baht(total));
     });
   });
 

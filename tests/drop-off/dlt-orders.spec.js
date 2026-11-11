@@ -1,10 +1,6 @@
 const { test, expect } = require('../../fixtures');
-const { env } = require('../../config/environments');
-const { USER_STATE, DROPOFF_STATE } = require('../../config/auth');
-const { OrdersPage } = require('../../pages/OrdersPage');
-const { OrderDetailPage } = require('../../pages/OrderDetailPage');
-const { OrderItemsPage } = require('../../pages/OrderItemsPage');
-const { ProfilePage } = require('../../pages/ProfilePage');
+const { DROPOFF_STATE } = require('../../config/auth');
+const { openPortal } = require('../../helpers/portal');
 const { readEodItems } = require('../../helpers/eodItems');
 const { readDownload, parseCsv, countBy, grams } = require('../../helpers/orderData');
 const { thaiDate } = require('../../helpers/thaiDate');
@@ -12,24 +8,6 @@ const { thaiDate } = require('../../helpers/thaiDate');
 const TODAY = thaiDate();
 const FROM_FUTURE_ITEMS = 'จากรายการล่วงหน้า';
 const CREATED_TODAY = new RegExp(`^${TODAY} - \\d{2}:\\d{2}$`);
-
-/** The DLT user's User Portal next to the Drop Off page, to see what the customer sees; VIDEO=1 records it too */
-async function openPortal(browser) {
-  const video = process.env.VIDEO ? { recordVideo: { dir: test.info().outputPath('portal') } } : {};
-  const context = await browser.newContext({ storageState: USER_STATE, baseURL: `${env.baseURL}/`, timezoneId: 'Asia/Bangkok', ...video });
-  const page = await context.newPage();
-  return {
-    context,
-    async close() {
-      await context.close();
-      if (page.video()) await test.info().attach('portal video', { path: await page.video().path(), contentType: 'video/webm' });
-    },
-    ordersPage: new OrdersPage(page),
-    orderDetailPage: new OrderDetailPage(page),
-    orderItemsPage: new OrderItemsPage(page),
-    profilePage: new ProfilePage(page),
-  };
-}
 
 test.describe('Drop Off: orders created from future items (DLT)', () => {
   test.use({ storageState: DROPOFF_STATE });

@@ -132,9 +132,10 @@ test.describe('Create Future Items API', () => {
     });
 
     test('valid signature of a non-DLT credential → 403 and nothing is created', async ({ futureItemsApi }) => {
-      test.skip(!env.nonDlt.huid || !env.nonDlt.secretKey, 'Set *_NON_DLT_HUID / *_NON_DLT_SECRET_KEY in .env');
+      const { huid, secretKey } = env.normalUser;
+      test.skip(!huid || !secretKey, 'Set *_NORMAL_USER_HUID / *_NORMAL_USER_SECRET_KEY in .env');
       const refCodes = uniqueRefCodes(1);
-      const headers = futureItemsApi.signedHeaders({ credentials: env.nonDlt });
+      const headers = futureItemsApi.signedHeaders({ credentials: { huid, secretKey } });
 
       const response = await futureItemsApi.create(buildPayload({ refCodes }), { headers });
 

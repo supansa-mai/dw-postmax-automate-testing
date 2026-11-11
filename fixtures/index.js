@@ -10,6 +10,7 @@ const { OrderItemsPage } = require('../pages/OrderItemsPage');
 const { DropOffOrdersPage } = require('../pages/DropOffOrdersPage');
 const { DropOffOrderDetailPage } = require('../pages/DropOffOrderDetailPage');
 const { ProfilePage } = require('../pages/ProfilePage');
+const { PreloadPage } = require('../pages/PreloadPage');
 const { FutureItemsApi } = require('../helpers/futureItemsApi');
 const { env } = require('../config/environments');
 
@@ -47,6 +48,9 @@ const test = base.test.extend({
   },
   profilePage: async ({ page }, use) => {
     await use(new ProfilePage(page));
+  },
+  preloadPage: async ({ page }, use) => {
+    await use(new PreloadPage(page));
   },
   futureItemsApi: async ({ request }, use) => {
     await use(new FutureItemsApi(request, env));
