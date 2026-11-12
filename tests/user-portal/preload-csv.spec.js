@@ -1,21 +1,19 @@
 const { test, expect } = require('../../fixtures');
 const { openPortal, forUsers } = require('../../helpers/portal');
-const { CSV_USERS, preloadRows, preloadCsv, pricedItem, serviceLabel } = require('../../helpers/preloadCsv');
+const { CSV_USERS, ORDER_NAME, TEMPLATE_COLUMNS, TSD_TEMPLATE_COLUMNS, preloadRows, preloadCsv, pricedItem, serviceLabel } = require('../../helpers/preloadCsv');
 const { BackOfficeApi } = require('../../helpers/backOfficeApi');
 const { expectedSummary, bySummaryKey, baht } = require('../../helpers/pricing');
 const { uniqueBatchRef } = require('../../helpers/futureItemsApi');
 const { readDownload, parseCsv, countBy } = require('../../helpers/orderData');
 const { thaiDate } = require('../../helpers/thaiDate');
 
-const TEMPLATE_COLUMNS = ['ID', 'รหัสบริการ', 'สินค้า', 'ชื่อผู้รับ', 'ที่อยู่', 'รหัสไปรษณีย์', 'ประเทศ', 'เบอร์ติดต่อ', 'อีเมล',
-  'น้ำหนักต่อชิ้น (กรัม)', 'ประกันภัย', 'มูลค่าประกัน', 'หมายเลขติดตามพัสดุ', 'หมายเลขอ้างอิง 1', 'หมายเลขอ้างอิง 2'];
 const EXPORT_COLUMNS = ['ID', 'ประเภทการขนส่ง', 'บริการ', 'บริการ e-AR', 'สินค้า', 'ชื่อผู้รับ', 'ที่อยู่', 'ประเทศ', 'รหัสไปรษณีย์',
   'เบอร์ติดต่อ', 'อีเมล', 'หมายเลขติดตามพัสดุ', 'น้ำหนักต่อชิ้น (กรัม)', 'ประกันภัย', 'มูลค่าประกัน', 'หมายเลขอ้างอิง 1', 'หมายเลขอ้างอิง 2'];
 
 const NORMAL_USER = { ...CSV_USERS[0], templateColumns: TEMPLATE_COLUMNS, exportColumns: EXPORT_COLUMNS };
 const TSD_USER = {
   ...CSV_USERS[1],
-  templateColumns: [...TEMPLATE_COLUMNS, 'ราคาต่อชิ้น', 'รูปแบบซอง'],
+  templateColumns: TSD_TEMPLATE_COLUMNS,
   exportColumns: [...EXPORT_COLUMNS, 'ราคาต่อชิ้น', 'หมายเหตุ'],
 };
 
@@ -463,7 +461,7 @@ test.describe('เตรียมการฝากส่งด้วยไฟ�
         const portal = await openPortal(browser, TSD_USER.state);
         const { page, preloadPage } = portal;
         const { reference, rows, sender } = await uploadAllServiceCodes(preloadPage, fees);
-        const extra = { 'ประเภทเอกสาร': 'AUTO เอกสาร', 'ชื่อรายการ': reference.replace('AUTO_', 'Automate_'), 'หมายเลขอ้างอิง': reference };
+        const extra = { 'ประเภทเอกสาร': 'AUTO เอกสาร', 'ชื่อรายการ': ORDER_NAME, 'หมายเลขอ้างอิง': reference };
         const exportDate = await preloadPage.pickExportDate();
         await preloadPage.documentTypeInput.fill(extra['ประเภทเอกสาร']);
         await preloadPage.orderNameInput.fill(extra['ชื่อรายการ']);

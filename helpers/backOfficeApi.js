@@ -69,6 +69,15 @@ class BackOfficeApi {
     return this.get(`orders/${id}`);
   }
 
+  /** The order list row of an order number created in the last week: { id, status, totalOrderItems, ... } */
+  async findOrder(number) {
+    const day = 24 * 60 * 60 * 1000;
+    const startDate = new Date(Date.now() - 7 * day).toISOString();
+    const endDate = new Date(Date.now() + day).toISOString();
+    const orders = await this.get(`orders?startDate=${startDate}&endDate=${endDate}&search=${number}&page=1&perPage=10`);
+    return orders.find((order) => order.trackingNumber === number);
+  }
+
   async close() {
     await this.context.close();
   }

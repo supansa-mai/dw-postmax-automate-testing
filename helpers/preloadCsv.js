@@ -42,6 +42,14 @@ const RURAL_CODES = ['MAIL-STD-PLS', 'MAIL-R-PLS', 'EMS-STD-PLUS'];
 const NAMED_AREA_CODE = 'EMS-STD-PLUS';
 const UNNAMED_AREA_CODE = 'EMS-PRIME';
 
+// Columns of the preload template on เตรียมการฝากส่ง; TSD's has two more
+const TEMPLATE_COLUMNS = ['ID', 'รหัสบริการ', 'สินค้า', 'ชื่อผู้รับ', 'ที่อยู่', 'รหัสไปรษณีย์', 'ประเทศ', 'เบอร์ติดต่อ', 'อีเมล',
+  'น้ำหนักต่อชิ้น (กรัม)', 'ประกันภัย', 'มูลค่าประกัน', 'หมายเลขติดตามพัสดุ', 'หมายเลขอ้างอิง 1', 'หมายเลขอ้างอิง 2'];
+const TSD_TEMPLATE_COLUMNS = [...TEMPLATE_COLUMNS, 'ราคาต่อชิ้น', 'รูปแบบซอง'];
+
+/** A template with only its header, for preloadRows() without downloading it from the portal */
+const blankTemplate = (columns) => [Object.fromEntries(columns.map((name) => [name, '']))];
+
 const PRODUCTS = ['เสื้อผ้า', 'เอกสาร', 'ใบแจ้งยอดค้างชำระ', 'หนังสือเชิญประชุม', 'เครื่องสำอาง', ''];
 // TSD's รูปแบบซอง: the values of its template, or none (shown on the dashboard)
 const ENVELOPES = ['', 'seal', 'ซอง', '1', '2'];
@@ -113,6 +121,9 @@ function pricedItem(row) {
   };
 }
 
+// ชื่อรายการ of every order the tests create, from the portal or the Public API
+const ORDER_NAME = 'Automate_Testing';
+
 // The users that create orders from a CSV upload; TSD's order is ส่งออกแล้ว once created
 const CSV_USERS = [
   { name: 'user ปกติ', state: NORMAL_STATE, tsd: false, createdStatus: 'สร้างแล้ว' },
@@ -132,7 +143,7 @@ async function createCsvOrder(browser, user, { ruralAreas } = {}) {
   const rows = preloadRows(template, reference, { ruralAreas });
   await portal.preloadPage.upload(preloadCsv(rows));
   const { number, exportDate } = await portal.preloadPage.createOrder({
-    reference, tsd: user.tsd, documentType: 'AUTO เอกสาร', orderName: reference.replace('AUTO_', 'Automate_'),
+    reference, tsd: user.tsd, documentType: 'AUTO เอกสาร', orderName: ORDER_NAME,
   });
   // The order is กำลังสร้าง for a few seconds after the upload
   await expect(async () => {
@@ -159,4 +170,4 @@ function serviceLabel({ type, zone }) {
   return zone > 0 ? `${TYPE_LABELS[type]} ต่างประเทศ Zone ${zone}` : TYPE_LABELS[type];
 }
 
-module.exports = { SERVICE_CODES, TYPE_LABELS, serviceLabel, CSV_USERS, preloadRows, preloadCsv, pricedItem, createCsvOrder };
+module.exports = { ORDER_NAME, SERVICE_CODES, TEMPLATE_COLUMNS, TSD_TEMPLATE_COLUMNS, blankTemplate, TYPE_LABELS, serviceLabel, CSV_USERS, preloadRows, preloadCsv, pricedItem, createCsvOrder };
