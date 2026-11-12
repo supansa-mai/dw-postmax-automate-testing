@@ -13,8 +13,8 @@ const NOTIFY_EMAIL = 'supansa.h+postmax-auto@datawow.io';
 const REQUIRED_FIELDS = ['file', 'documentType', 'orderName', 'refNumber'];
 const OPTIONAL_FIELDS = ['releaseDate', 'orderItemCount', 'notifyEmail'];
 
-// One broken row each. For TSD a country with no zone for the row's service only cuts that row out (CPM-1714,
-// TSD-06); a normal company's whole file fails...
+// One broken row each (TSD). A country with no zone for the row's service only cuts that row out (CPM-1714,
+// TSD-06; a normal company's whole file would fail)...
 const DROPPED_ROWS = {
   'ประเทศไม่มีในระบบ': (row) => Object.assign(row, { 'รหัสบริการ': 'MAIL-R', 'ประเทศ': 'NOWHERELAND', 'รหัสไปรษณีย์': '99999' }),
   'ไปรษณีย์ธรรมดาส่งต่างประเทศ': (row) => Object.assign(row, { 'รหัสบริการ': 'MAIL-STD', 'ประเทศ': 'JAPAN', 'รหัสไปรษณีย์': '99999' }),
@@ -143,15 +143,19 @@ test.describe('Public API preload (/v1/public/preloads/tsd)', () => {
         expect(bySummaryKey(detail.preloadedSummary)).toEqual(bySummaryKey(summary));
       });
 
-      for (const [label, breakRow] of Object.entries(DROPPED_ROWS)) {
-        if (!user.tsd) {
+      // Normal companies rarely preload through the API: only the cases where they get a different result from TSD
+      if (!user.tsd) {
+        for (const label of Object.keys(DROPPED_ROWS)) {
           test(`${label} สร้างไม่สำเร็จทั้งไฟล์`, async () => {
-            const { fields } = await buildPreload(user, fees, { breakRow });
+            const { fields } = await buildPreload(user, fees, { breakRow: DROPPED_ROWS[label] });
             const order = await preloadAndWait(api, backOffice, fields);
             expect(order).toMatchObject({ status: 'CREATED_FAILED', totalOrderItems: 0 });
           });
-          continue;
         }
+        return;
+      }
+
+      for (const [label, breakRow] of Object.entries(DROPPED_ROWS)) {
         test(`${label} ตัดแถวนั้นออก ที่เหลือสร้างสำเร็จ`, async () => {
           const { rows, summary, fields } = await buildPreload(user, fees, { breakRow });
           const order = await preloadAndWait(api, backOffice, fields);
@@ -161,51 +165,48 @@ test.describe('Public API preload (/v1/public/preloads/tsd)', () => {
         });
       }
 
-      // Only TSD: each failed preload sends a Preload Failure email
-      if (user.tsd) {
-        test('จำนวนชิ้นไม่ตรงกับไฟล์ สร้างไม่สำเร็จ', async () => {
-          const { rows, fields } = await buildPreload(user, fees);
-          const order = await preloadAndWait(api, backOffice, { ...fields, orderItemCount: String(rows.length + 1) });
-          expect(order.status).toBe('CREATED_FAILED');
-        });
+      test('จำนวนชิ้นไม่ตรงกับไฟล์ สร้างไม่สำเร็จ', async () => {
+        const { rows, fields } = await buildPreload(user, fees);
+        const order = await preloadAndWait(api, backOffice, { ...fields, orderItemCount: String(rows.length + 1) });
+        expect(order.status).toBe('CREATED_FAILED');
+      });
 
-        test('ราคาสุทธิไม่ตรงกับไฟล์ สร้างไม่สำเร็จ', async () => {
-          const { total, fields } = await buildPreload(user, fees);
-          const order = await preloadAndWait(api, backOffice, { ...fields, totalPrices: (total + 1).toFixed(2) });
-          expect(order.status).toBe('CREATED_FAILED');
-        });
+      test('ราคาสุทธิไม่ตรงกับไฟล์ สร้างไม่สำเร็จ', async () => {
+        const { total, fields } = await buildPreload(user, fees);
+        const order = await preloadAndWait(api, backOffice, { ...fields, totalPrices: (total + 1).toFixed(2) });
+        expect(order.status).toBe('CREATED_FAILED');
+      });
 
-        test('ชื่อคอลัมน์ไม่ตรงกับ template สร้างไม่สำเร็จ', async () => {
-          const { fields } = await buildPreload(user, fees, { editCsv: (csv) => csv.replace('ชื่อผู้รับ', 'ชื่อ') });
-          const order = await preloadAndWait(api, backOffice, fields);
-          expect(order.status).toBe('CREATED_FAILED');
-        });
+      test('ชื่อคอลัมน์ไม่ตรงกับ template สร้างไม่สำเร็จ', async () => {
+        const { fields } = await buildPreload(user, fees, { editCsv: (csv) => csv.replace('ชื่อผู้รับ', 'ชื่อ') });
+        const order = await preloadAndWait(api, backOffice, fields);
+        expect(order.status).toBe('CREATED_FAILED');
+      });
 
-        for (const [label, breakRow] of Object.entries(FAILING_ROWS)) {
-          test(`${label} สร้างไม่สำเร็จทั้งไฟล์`, async () => {
-            const { fields } = await buildPreload(user, fees, { breakRow });
-            const order = await preloadAndWait(api, backOffice, fields);
-            expect(order).toMatchObject({ status: 'CREATED_FAILED', totalOrderItems: 0 });
-          });
-        }
-
-        // Not the CPM-1828 portal bug: with nothing left after cutting, the API fails the file
-        test('ประเทศไม่มีในระบบทุกแถว สร้างไม่สำเร็จทั้งไฟล์', async () => {
-          const { fields } = await buildPreload(user, fees, { editRows: (rows) => rows.forEach(DROPPED_ROWS['ประเทศไม่มีในระบบ']) });
-          const order = await preloadAndWait(api, backOffice, fields);
-          expect(order).toMatchObject({ status: 'CREATED_FAILED', totalOrderItems: 0 });
-        });
-
-        // Only a wrong country is cut out; any other error still fails the file
-        test('ประเทศไม่มีในระบบ ปนกับไม่กรอกชื่อผู้รับ สร้างไม่สำเร็จทั้งไฟล์', async () => {
-          const { fields } = await buildPreload(user, fees, {
-            breakRow: DROPPED_ROWS['ประเทศไม่มีในระบบ'],
-            editRows: (rows) => { rows.filter((row) => !row['ราคาต่อชิ้น'] && !row['ประเทศ'])[1]['ชื่อผู้รับ'] = ''; },
-          });
+      for (const [label, breakRow] of Object.entries(FAILING_ROWS)) {
+        test(`${label} สร้างไม่สำเร็จทั้งไฟล์`, async () => {
+          const { fields } = await buildPreload(user, fees, { breakRow });
           const order = await preloadAndWait(api, backOffice, fields);
           expect(order).toMatchObject({ status: 'CREATED_FAILED', totalOrderItems: 0 });
         });
       }
+
+      // Not the CPM-1828 portal bug: with nothing left after cutting, the API fails the file
+      test('ประเทศไม่มีในระบบทุกแถว สร้างไม่สำเร็จทั้งไฟล์', async () => {
+        const { fields } = await buildPreload(user, fees, { editRows: (rows) => rows.forEach(DROPPED_ROWS['ประเทศไม่มีในระบบ']) });
+        const order = await preloadAndWait(api, backOffice, fields);
+        expect(order).toMatchObject({ status: 'CREATED_FAILED', totalOrderItems: 0 });
+      });
+
+      // Only a wrong country is cut out; any other error still fails the file
+      test('ประเทศไม่มีในระบบ ปนกับไม่กรอกชื่อผู้รับ สร้างไม่สำเร็จทั้งไฟล์', async () => {
+        const { fields } = await buildPreload(user, fees, {
+          breakRow: DROPPED_ROWS['ประเทศไม่มีในระบบ'],
+          editRows: (rows) => { rows.filter((row) => !row['ราคาต่อชิ้น'] && !row['ประเทศ'])[1]['ชื่อผู้รับ'] = ''; },
+        });
+        const order = await preloadAndWait(api, backOffice, fields);
+        expect(order).toMatchObject({ status: 'CREATED_FAILED', totalOrderItems: 0 });
+      });
     });
   }
 

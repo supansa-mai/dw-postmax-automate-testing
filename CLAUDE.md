@@ -16,7 +16,7 @@ npm test                             # api + chromium + eod, ENV=dev (webkit onl
 npm run test:eod                     # only specs that need paid items (uploads an EOD file, waits ~5 min)
 npm run test:eod-files               # opt-in: reconcile cases that upload EOD files of their own (~5 min each); not together with test:eod
 npm run test:uat                     # target env: test:dev / test:uat / test:local
-npm run test:api                     # API project only (after setup's logins: preloads.spec.js checks orders in Back Office)
+npm run test:api                     # API project only (after setup's logins: api-preloads.spec.js checks orders in Back Office)
 WORKERS=4 npm test                   # local default is 2 workers (CI: 1) so the shared dev DB pool isn't exhausted
 npx playwright test tests/api/create-future-items.spec.js -g "TS02-TC07"   # single file / test by title
 npm run test:uat -- --project=api -g "rate limit"                          # combine env + flags

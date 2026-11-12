@@ -35,7 +35,7 @@ module.exports = defineConfig({
     launchOptions: { slowMo: Number(process.env.SLOWMO ?? (process.env.VIDEO ? 500 : 0)) },
   },
   projects: [
-    // API tests run once in their own project; setup gives preloads.spec.js the Back Office session it checks orders with.
+    // API tests run once in their own project; setup gives api-preloads.spec.js the Back Office session it checks orders with.
     // Not parallel: dev API's DB pool is only 3 connections and returns 500 under concurrent load.
     { name: 'api', testMatch: /tests[\\/]api[\\/].*\.spec\.js/, fullyParallel: false, dependencies: ['setup'] },
     // Logs in once; UI projects start already logged in as the DLT user
