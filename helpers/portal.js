@@ -2,6 +2,7 @@
 const { test } = require('@playwright/test');
 const { env } = require('../config/environments');
 const { USER_STATE } = require('../config/auth');
+const { DashboardPage } = require('../pages/DashboardPage');
 const { OrdersPage } = require('../pages/OrdersPage');
 const { OrderDetailPage } = require('../pages/OrderDetailPage');
 const { OrderItemsPage } = require('../pages/OrderItemsPage');
@@ -21,6 +22,7 @@ async function openPortal(browser, storageState = USER_STATE) {
       await context.close();
       if (page.video()) await test.info().attach('portal video', { path: await page.video().path(), contentType: 'video/webm' });
     },
+    dashboardPage: new DashboardPage(page),
     ordersPage: new OrdersPage(page),
     orderDetailPage: new OrderDetailPage(page),
     orderItemsPage: new OrderItemsPage(page),
