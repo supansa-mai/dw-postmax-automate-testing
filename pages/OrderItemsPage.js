@@ -15,6 +15,23 @@ class OrderItemsPage extends BasePage {
     this.allOnOnePage = page.getByText(/^1–(\d+) of \1$/);
   }
 
+  async search(text) {
+    await this.page.getByRole('textbox', { name: 'ค้นหาหมายเลขติดตามพัสดุหรือชื่อผู้รับ' }).fill(text);
+    await expect(this.rows).toHaveCount(1, { timeout: 30000 });
+  }
+
+  /** เลือกสถานะ lists Thai Post's status descriptions, e.g. "นำจ่ายสำเร็จ" */
+  async filterStatus(status) {
+    await this.page.getByRole('combobox', { name: 'เลือกสถานะ' }).click();
+    await this.page.getByRole('option', { name: status, exact: true }).click();
+    await this.page.keyboard.press('Escape');
+  }
+
+  /** เอกสารยืนยันการจัดส่ง (e-AR) of an item's row; only enabled once the signed e-AR file is in */
+  documentButton(trackingNumber) {
+    return this.rows.filter({ hasText: trackingNumber }).locator('[data-field=documentConfirmation] button');
+  }
+
   /** The grid shows 10 items a page; 50 (the most) fits every order the tests create */
   async showAllRows() {
     await this.rowsPerPage.click();

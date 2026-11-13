@@ -1,7 +1,9 @@
 const { test, expect } = require('../../fixtures');
 const { DROPOFF_STATE } = require('../../config/auth');
 const { openPortal } = require('../../helpers/portal');
+const { ENV_NAME } = require('../../config/environments');
 const { readEodItems } = require('../../helpers/eodItems');
+const { BackOfficeApi } = require('../../helpers/backOfficeApi');
 const { readDownload, parseCsv, countBy, grams } = require('../../helpers/orderData');
 const { thaiDate } = require('../../helpers/thaiDate');
 
@@ -198,6 +200,37 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
             ref1: receiveOrder.batchRef,
           });
         }
+        await context.close();
+      });
+
+      test('อัปเดตสถานะกำลังจัดส่ง / ส่งสำเร็จ / ส่งไม่สำเร็จ แสดงในรายละเอียดใบนำส่งและรายพัสดุ', async ({ browser }) => {
+        test.skip(ENV_NAME !== 'dev', 'the Thai Post status mock (PATCH order-items/:tracking/status) is only known to be on dev');
+        const [inTransit, delivered, failed] = receiveOrder.items;
+        const backOffice = await BackOfficeApi.open(browser);
+        const { id } = await backOffice.findOrder(receiveOrder.number);
+        // Received (103) is saved a moment after drop off and would overwrite an update sent before it
+        await expect.poll(async () => (await backOffice.orderItems(id)).every((item) => item.status === '103'),
+          { message: `items of ${receiveOrder.number} received`, timeout: 60000, intervals: [2000] }).toBe(true);
+        await backOffice.updateItemStatus(inTransit.trackingNumber, 'inTransit', { orderId: id });
+        await backOffice.updateItemStatus(delivered.trackingNumber, 'delivered', { orderId: id });
+        await backOffice.updateItemStatus(failed.trackingNumber, 'failed', { reason: 'บ้านปิด', orderId: id });
+        await backOffice.close();
+
+        const { context, page, orderDetailPage: d, orderItemsPage } = await openPortal(browser);
+        await expect(async () => {
+          await page.goto(`orders/${id}`);
+          await expect(d.field('สถานะการฝากส่ง')).toHaveText('ส่งสำเร็จ', { timeout: 5000 });
+          expect(await d.tableRows(d.deliveryTable))
+            .toEqual([['รับฝากสำเร็จ', '0'], ['กำลังจัดส่ง', '1'], ['ส่งสำเร็จ', '1'], ['ส่งไม่สำเร็จ', '1']]);
+        }).toPass({ timeout: 60000 });
+
+        await d.itemsButton.click();
+        const rows = await orderItemsPage.rowValues();
+        expect(Object.fromEntries(rows.map((row) => [row.trackingNumber, row.status]))).toEqual({
+          [inTransit.trackingNumber]: 'ออกจากที่ทำการ/ศูนย์ไปรษณีย์',
+          [delivered.trackingNumber]: 'นำจ่ายสำเร็จ',
+          [failed.trackingNumber]: 'นำจ่ายไม่สำเร็จ',
+        });
         await context.close();
       });
     });

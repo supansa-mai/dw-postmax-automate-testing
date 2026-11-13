@@ -8,9 +8,10 @@ const { uniqueBatchRef } = require('./futureItemsApi');
 const { readDownload, parseCsv } = require('./orderData');
 const { randomThaiName, randomThaiPhone, randomEmail, randomThaiAddress, randomThaiPostalCode } = require('./testData');
 // One country per registered-mail zone (1-22) that also has an EMS zone, from Back Office > จัดการโซน (dev, Nov 2026);
-// international fees are per zone, so more countries of the same zone would test nothing new
-const COUNTRIES = ['MYANMAR', 'NETHERLANDS', 'CAMBODIA', 'BRUNEI DARUSSALAM', 'HONG KONG', 'ALGERIA', 'JAPAN', 'ISRAEL',
-  'BAHRAIN', 'INDONESIA', 'AUSTRALIA', 'NEPAL', 'GERMANY', 'EGYPT', 'BELGIUM', 'AUSTRIA', 'CANADA', 'AMERICAN SAMOA',
+// international fees are per zone, so more countries of the same zone would test nothing new. Each must have both
+// zones on UAT too, whose zones differ (no BAHRAIN, no EMS zone for ALGERIA)
+const COUNTRIES = ['MYANMAR', 'NETHERLANDS', 'CAMBODIA', 'BRUNEI DARUSSALAM', 'HONG KONG', 'INDIA', 'JAPAN', 'ISRAEL',
+  'UNITED ARAB EMIRATES', 'INDONESIA', 'AUSTRALIA', 'NEPAL', 'GERMANY', 'EGYPT', 'BELGIUM', 'AUSTRIA', 'CANADA', 'AMERICAN SAMOA',
   'ARGENTINA'];
 
 // Service code → Thai Post type, PostMax service and e-AR as the system stores them; the "-0" codes are the free (0 baht)
@@ -133,14 +134,15 @@ const CSV_USERS = [
 /**
  * Creates an order as `user` with one item per service code (preloadRows), and waits until it is created;
  * returns { id, number, reference, exportDate (TSD), items }, each item the CSV row's pricing fields (pricedItem) plus its
- * tracking number, the uploaded row and the row of the order's CSV export (with the type and service labels)
+ * tracking number, the uploaded row and the row of the order's CSV export (with the type and service labels).
+ * `only` keeps some of the rows
  */
-async function createCsvOrder(browser, user, { ruralAreas } = {}) {
+async function createCsvOrder(browser, user, { ruralAreas, only = () => true } = {}) {
   const reference = uniqueBatchRef();
   const portal = await openPortal(browser, user.state);
   await portal.preloadPage.goto();
   const template = parseCsv(await readDownload(await portal.preloadPage.downloadTemplate()));
-  const rows = preloadRows(template, reference, { ruralAreas });
+  const rows = preloadRows(template, reference, { ruralAreas }).filter(only);
   await portal.preloadPage.upload(preloadCsv(rows));
   const { number, exportDate } = await portal.preloadPage.createOrder({
     reference, tsd: user.tsd, documentType: 'AUTO เอกสาร', orderName: ORDER_NAME,

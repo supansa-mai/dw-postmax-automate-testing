@@ -370,10 +370,12 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
       await d.goto();
       await d.openTab('อัตราการนำจ่าย');
 
-      // The order filter only offers the company's latest 50 orders
-      const offered = await d.orderOptions();
-      const [first, second] = orders.filter((o) => offered.includes(o.number));
-      test.skip(!second, 'fewer than two of the orders received in the range are among the 50 หมายเลขใบนำส่ง offers');
+      // CPM-1840: every order received in the range (any status), and only those; typing one finds just it
+      const numbers = (list) => list.map((o) => o.number).sort();
+      expect((await d.orderOptions()).sort()).toEqual(numbers(orders));
+      const [first, second] = orders;
+      expect(await d.orderOptions(first.number)).toEqual([first.number]);
+      test.skip(!second, 'fewer than two orders were received in the range');
       for (const [order, expected] of [[first, first.received], [second, first.received + second.received]]) {
         expect(await d.countAfter(() => d.pickOrder(order.number)), `ใบนำส่ง ${order.number}`).toBe(expected);
       }
@@ -385,6 +387,14 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
       expect(await d.countAfter(() => d.search('NO_SUCH_REFERENCE'), { search: 'NO_SUCH_REFERENCE' })).toBe(0);
       await expectRate(d, 0);
       await close();
+
+      // Another range (the day the first order was received): the options follow it
+      const other = await openPortal(browser, NORMAL_STATE);
+      await other.dashboardPage.goto();
+      await other.dashboardPage.openTab('อัตราการนำจ่าย');
+      await other.dashboardPage.pickCustomRange(fieldDate(first.day), fieldDate(first.day));
+      expect((await other.dashboardPage.orderOptions()).sort()).toEqual(numbers(orders.filter((o) => o.day === first.day)));
+      await other.close();
     });
   });
 });
@@ -468,7 +478,8 @@ test.describe('รายงานข้อมูล ค่าบริการ 
     await portal.dashboardPage.goto();
     await portal.dashboardPage.openTab('ค่าบริการ');
     const shown = await portal.dashboardPage.feeAfter(() => portal.dashboardPage.pickDateOption('ตลอดอายุ'));
-    const inRange = fees.filter((f) => f.settledAt >= shown.startDate && f.settledAt <= shown.endDate);
+    // ตลอดอายุ sends no startDate
+    const inRange = fees.filter((f) => (!shown.startDate || f.settledAt >= shown.startDate) && f.settledAt <= shown.endDate);
     test.skip(!inRange.length, 'no settlement summary was confirmed in ตลอดอายุ');
     return { portal, shown, inRange };
   }
@@ -507,25 +518,32 @@ test.describe('รายงานข้อมูล ค่าบริการ 
     test('user TSD: กรองหมายเลขใบนำส่ง และค้นหาหมายเลขอ้างอิง', async ({ browser }) => {
       const { portal, inRange } = await openAllTime(browser);
       const d = portal.dashboardPage;
+      const orderNumbers = (list) => [...new Set(list.map((f) => f.orderNumber))].sort();
 
-      // The order filter only offers the latest 50 orders, which may hold no confirmed summary
-      const offered = await d.orderOptions();
-      const listed = inRange.find((f) => offered.includes(f.orderNumber));
-      if (listed) {
-        const byOrder = await d.feeAfter(() => d.pickOrder(listed.orderNumber));
-        expect(byOrder.total).toBeCloseTo(sumOf(inRange.filter((f) => f.orderNumber === listed.orderNumber)), 2);
-        await d.clear('หมายเลขใบนำส่ง');
-      } else {
-        test.info().annotations.push({ type: 'skipped step', description: 'no confirmed summary among the 50 orders หมายเลขใบนำส่ง offers' });
-      }
+      // CPM-1839: every order whose summary was confirmed in the range, and only those; typing one finds just it
+      expect((await d.orderOptions()).sort()).toEqual(orderNumbers(inRange));
+      const [listed] = orderNumbers(inRange);
+      expect(await d.orderOptions(listed)).toEqual([listed]);
+      const byOrder = await d.feeAfter(() => d.pickOrder(listed));
+      expect(byOrder.total).toBeCloseTo(sumOf(inRange.filter((f) => f.orderNumber === listed)), 2);
+      await d.clear('หมายเลขใบนำส่ง');
 
       const fee = inRange[0];
       const keyword = fee.searchText.split(' ').pop();
       const bySearch = await d.feeAfter(() => d.search(keyword), { search: keyword });
-      expect(bySearch.total).toBeCloseTo(sumOf(inRange.filter((f) => f.searchText.includes(keyword))), 2);
+      // The search ignores case
+      expect(bySearch.total).toBeCloseTo(sumOf(inRange.filter((f) => f.searchText.toLowerCase().includes(keyword.toLowerCase()))), 2);
       expect((await d.feeAfter(() => d.search('NO_SUCH_REFERENCE'), { search: 'NO_SUCH_REFERENCE' })).total).toBe(0);
       await expect.poll(() => d.feeTotal()).toBe(0);
       await portal.close();
+
+      // Another range (the day a summary was confirmed): the options follow it
+      const { portal: other } = await openAllTime(browser);
+      const day = bangkokDay(fee.settledAt);
+      const custom = await other.dashboardPage.feeAfter(() => other.dashboardPage.pickCustomRange(fieldDate(day), fieldDate(day)));
+      expect((await other.dashboardPage.orderOptions()).sort())
+        .toEqual(orderNumbers(fees.filter((f) => f.settledAt >= custom.startDate && f.settledAt <= custom.endDate)));
+      await other.close();
     });
   });
 });

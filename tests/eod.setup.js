@@ -27,7 +27,8 @@ const GROUPS = {
   cancelledElsewhere: { paid: 2 },
   // Put in the orders below
   order: { paid: 3 },
-  receiveOrder: { paid: 2 },
+  // 3 items: TS10-TC05 updates one to each delivery status
+  receiveOrder: { paid: 3 },
   partialReceiveOrder: { paid: 3 },
 };
 

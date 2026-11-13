@@ -345,9 +345,11 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
           await d.weightInput.fill('');
           await d.editDialog.getByRole('button', { name: 'ยืนยัน' }).click();
           await expect(d.editDialog.getByText('กรุณากรอกน้ำหนักต่อชิ้น (กรัม)', { exact: true })).toBeVisible();
-          await d.weightInput.fill('40001');
+          // The heaviest band of domestic EMS (40000 on dev, 30000 on UAT)
+          const maxWeight = Math.max(...(await backOffice.fees()).domestic.EMS.map((band) => Number(band.maxWeight)));
+          await d.weightInput.fill(String(maxWeight + 1));
           await d.editDialog.getByRole('button', { name: 'ยืนยัน' }).click();
-          await expect(d.editDialog.getByText('กรุณากรอกน้ำหนักไม่เกิน 40000 กรัม', { exact: true })).toBeVisible();
+          await expect(d.editDialog.getByText(`กรุณากรอกน้ำหนักไม่เกิน ${maxWeight} กรัม`, { exact: true })).toBeVisible();
           await d.weightInput.fill('');
           await d.weightInput.pressSequentially('-5');
           await expect(d.weightInput).not.toHaveValue(/-/);
@@ -394,7 +396,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
           await openPortalOrder(portal, order, order.received.length);
           await expect(d.field('วันที่/เวลาที่ปณ.ได้รับ')).toHaveText(/^\d{2}\/\d{2}\/\d{4} - \d{2}:\d{2}$/);
           await expect(d.deliverySection).toBeVisible();
-          await expect(d.field('ชื่อผู้รับฝาก')).toHaveText('Drop Off');
+          await expect(d.field('ชื่อผู้รับฝาก')).toHaveText((await backOffice.order(order.id)).dropOffBy.name);
           await expect(d.field('สาเหตุที่รับฝากไม่ครบ')).toHaveText('-');
           await expect(d.field('รายละเอียดเพิ่มเติม')).toHaveText('-');
           expect(await d.tableRows(d.deliveryTable)).toEqual([
@@ -474,16 +476,22 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
     test.describe.configure({ mode: 'serial' });
     const reason = 'ขอแก้ไขจ่าหน้า';
     const detail = 'AUTO รับฝากไม่ครบ';
+    let backOffice;
     const orders = {};
 
     test.beforeAll(async ({ browser }, testInfo) => {
       testInfo.setTimeout(4 * 60 * 1000);
+      backOffice = await BackOfficeApi.open(browser);
       for (const user of CSV_USERS) {
         const order = await createCsvOrder(browser, user);
         // Items without a tracking number cannot be scanned; one more item is left out
         const left = tracked(order.items).filter((item) => item.trackingNumber).at(-1);
         orders[user.name] = { ...order, received: order.items.filter((item) => item.trackingNumber && item !== left) };
       }
+    });
+
+    test.afterAll(async () => {
+      await backOffice?.close();
     });
 
     test.describe('TS06-TC01 ตรวจสอบหน้าสรุปรายการรับฝากสแกนทีละชิ้น', () => {
@@ -685,7 +693,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
           const order = orders[user.name];
           const d = portal.orderDetailPage;
           await openPortalOrder(portal, order, order.received.length);
-          await expect(d.field('ชื่อผู้รับฝาก')).toHaveText('Drop Off');
+          await expect(d.field('ชื่อผู้รับฝาก')).toHaveText((await backOffice.order(order.id)).dropOffBy.name);
           await expect(d.field('สาเหตุที่รับฝากไม่ครบ')).toHaveText(reason);
           await expect(d.field('รายละเอียดเพิ่มเติม')).toHaveText(detail);
           expect(await d.tableRows(d.deliveryTable)).toEqual([

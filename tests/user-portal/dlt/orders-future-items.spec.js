@@ -7,9 +7,9 @@ const { expectedSummary, bySummaryKey, baht } = require('../../../helpers/pricin
 
 const TODAY = thaiDate();
 
-// รายงานการฝากส่ง groups Bangkok and its vicinity (postal codes 10xxx-12xxx) as กรุงเทพมหานคร, seen on dev
+// รายงานการฝากส่ง groups Bangkok and its vicinity (postal codes 10xxx-12xxx, นครปฐม 73xxx and สมุทรสาคร 74xxx) as กรุงเทพมหานคร, seen on dev
 const AREAS = ['กรุงเทพมหานคร', 'ต่างจังหวัด'];
-const areaOf = (postalCode) => (/^1[0-2]/.test(postalCode) ? 'กรุงเทพมหานคร' : 'ต่างจังหวัด');
+const areaOf = (postalCode) => (/^(1[0-2]|7[34])/.test(postalCode) ? 'กรุงเทพมหานคร' : 'ต่างจังหวัด');
 
 test.describe('Orders created from future items (DLT)', () => {
   let order;

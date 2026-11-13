@@ -50,7 +50,8 @@ const PREFIXES = { NORMAL: /^D[YZ]\d{9}TH$/, REGISTERED: /^BZ\d{9}TH$/, EMS: /^J
 const ABROAD_PREFIXES = { REGISTERED: /^RQ\d{9}TH$/, EMS: /^EE\d{9}TH$/ };
 
 const AREAS = ['กรุงเทพมหานคร', 'ต่างจังหวัด', 'ต่างประเทศ'];
-const areaOf = (item) => (item.country ? 'ต่างประเทศ' : /^1[0-2]/.test(item.postalCode) ? 'กรุงเทพมหานคร' : 'ต่างจังหวัด');
+// กรุงเทพมหานคร = Bangkok and its vicinity: postal codes 10xxx-12xxx, นครปฐม 73xxx and สมุทรสาคร 74xxx
+const areaOf = (item) => (item.country ? 'ต่างประเทศ' : /^(1[0-2]|7[34])/.test(item.postalCode) ? 'กรุงเทพมหานคร' : 'ต่างจังหวัด');
 
 
 // The service code of a tracking number's type, so a reused number is checked against its own kind of service

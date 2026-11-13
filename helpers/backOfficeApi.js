@@ -95,10 +95,17 @@ class BackOfficeApi {
 
   /**
    * Mocks a Thai Post tracking update of a dropped-off item (dev): 'inTransit', 'delivered' or 'failed' with a
-   * `reason`, which the delivery-rate dashboard ranks; `at` is when it happened
+   * `reason`, which the delivery-rate dashboard ranks; `at` is when it happened (status_date, which the 90% delivery
+   * time uses; without it the server's now, as this machine's clock may lag behind the drop off). With `orderId`, fails
+   * when the update landed on another order's item: dev hands out some tracking numbers (EMS abroad, EE...) to many
+   * orders (CPM-1841). A delivered item takes no more updates
    */
-  async updateItemStatus(trackingNumber, kind, { reason = 'บ้านปิด', at = new Date() } = {}) {
-    return this.patch(`order-items/${trackingNumber}/status`, trackingUpdate(trackingNumber, kind, { reason, at }));
+  async updateItemStatus(trackingNumber, kind, { reason = 'บ้านปิด', at, orderId } = {}) {
+    const item = await this.patch(`order-items/${trackingNumber}/status`, trackingUpdate(trackingNumber, kind, { reason, at }));
+    if (orderId !== undefined) {
+      expect(String(item.orderId), `${trackingNumber} is also in order ${item.orderId}, which got the update`).toBe(String(orderId));
+    }
+    return item;
   }
 
   /** The order list row of an order number created in the last week: { id, status, totalOrderItems, ... } */
@@ -125,7 +132,7 @@ function thaiPostDateTime(date) {
 
 /** The body of a Thai Post tracking update, from the samples dev gave (CPM delivery mock) */
 function trackingUpdate(barcode, kind, { reason, at }) {
-  const common = { barcode, call_center_tel: '1545' };
+  const common = { barcode, call_center_tel: '1545', ...(at && { status_date: thaiPostDateTime(at) }) };
   const nobody = { receiver_name: null, signature: null };
   if (kind === 'inTransit') {
     return {
@@ -135,7 +142,7 @@ function trackingUpdate(barcode, kind, { reason, at }) {
       delivery_officer_name: null, delivery_officer_tel: null, office_name: null, office_tel: null,
     };
   }
-  const delivery = { delivery_datetime: thaiPostDateTime(at), delivery_officer_name: 'Automation', delivery_officer_tel: '0000000000' };
+  const delivery = { delivery_datetime: thaiPostDateTime(at ?? new Date()), delivery_officer_name: 'Automation', delivery_officer_tel: '0000000000' };
   if (kind === 'delivered') {
     return {
       ...common, ...delivery, status: '501', status_description: 'นำจ่ายสำเร็จ', location: 'พลับพลาไชย', postcode: '10100',

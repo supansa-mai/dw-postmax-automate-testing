@@ -67,13 +67,29 @@ class DashboardPage extends BasePage {
     await this.page.waitForLoadState('networkidle');
   }
 
-  /** The orders หมายเลขใบนำส่ง offers: only the company's latest 50; scrolling or typing finds no others */
-  async orderOptions() {
-    await this.page.getByRole('combobox', { name: 'หมายเลขใบนำส่ง' }).click();
-    await expect(this.page.getByRole('option').first()).toBeVisible();
-    const options = await this.page.getByRole('option').allInnerTexts();
+  /**
+   * The orders หมายเลขใบนำส่ง offers, `text` typed in it first. ค่าบริการ (TSD) loads 50 more each time the list is
+   * scrolled to the end (CPM-1839), so it is scrolled until no more come; the other tabs offer the latest 50 (CPM-1840)
+   */
+  async orderOptions(text) {
+    const box = this.page.getByRole('combobox', { name: 'หมายเลขใบนำส่ง' });
+    const options = this.page.getByRole('option');
+    await box.click();
+    if (text) {
+      const search = this.page.waitForResponse((r) => /v1\/frontend\/orders\?/.test(r.url()) && new URL(r.url()).searchParams.get('search') === text);
+      await this.page.keyboard.type(text);
+      await search;
+    }
+    await expect(options.first()).toBeVisible();
+    for (let count = 0; count !== await options.count();) {
+      count = await options.count();
+      const more = this.page.waitForResponse((r) => /v1\/frontend\/orders\?/.test(r.url()), { timeout: 3000 }).catch(() => null);
+      await this.page.getByRole('listbox').evaluate((el) => { el.scrollTop = el.scrollHeight; });
+      if (await more) await this.page.waitForLoadState('networkidle');
+    }
+    const offered = await options.allInnerTexts();
     await this.page.keyboard.press('Escape');
-    return options;
+    return offered;
   }
 
   /** Adds an order to หมายเลขใบนำส่ง; it must be one of orderOptions() */

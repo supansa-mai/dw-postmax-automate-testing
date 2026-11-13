@@ -190,7 +190,11 @@ test.describe('Create order from future items (DLT)', () => {
       await p.scanItems([item]);
 
       await p.scan(item.trackingNumber);
-      await expect(p.toast).toContainText('รายการนี้อยู่ในตารางแล้ว');
+      // A modal instead of the toast since CPM-1831
+      const dialog = p.dialog('สแกนพัสดุซ้ำ');
+      await expect(dialog).toContainText('พัสดุรายการนี้ถูกสแกนแล้ว กรุณาเพิ่มข้อมูลรายการอื่น หรือกดสร้างใบนำส่งเพื่อดำเนินการต่อ');
+      await dialog.getByRole('button', { name: 'ตกลง' }).click();
+      await expect(dialog).toBeHidden();
       await expect(p.total).toHaveText('ทั้งหมด 1 รายการ');
     });
   });

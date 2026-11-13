@@ -49,10 +49,11 @@ function rangeLabel(days) {
 /** 10/11/2569, as the custom range fields take a day */
 const fieldDate = (day) => `${day.slice(8, 10)}/${day.slice(5, 7)}/${Number(day.slice(0, 4)) + 543}`;
 
-/** กรุงเทพและปริมณฑล = postal codes 10xxx-12xxx, as the order report groups them */
+/** กรุงเทพและปริมณฑล = postal codes 10xxx-12xxx, นครปฐม 73xxx and สมุทรสาคร 74xxx, as the order report groups them */
 function locationOf({ country, postalCode }) {
-  if (country && country !== 'Thailand') return 'ABROAD';
-  return /^1[0-2]/.test(postalCode) ? 'BANGKOK' : 'NON_BANGKOK';
+  // Thailand on dev, THAILAND on UAT
+  if (country && country.toUpperCase() !== 'THAILAND') return 'ABROAD';
+  return /^(1[0-2]|7[34])/.test(postalCode) ? 'BANGKOK' : 'NON_BANGKOK';
 }
 
 /**
