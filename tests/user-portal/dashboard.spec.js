@@ -8,22 +8,6 @@ const {
   settledFees,
 } = require('../../helpers/dashboardData');
 
-// TSD has ค่าบริการ instead of อัตราการนำจ่าย; its overview shows the missing-item ranking
-const USERS = [
-  {
-    name: 'user ปกติ', state: NORMAL_STATE, deliveryTab: true,
-    cases: { rates: 'TS12-TC04', counts: 'TS12-TC06', locations: 'TS12-TC07', items: 'TS13-TC04', delivery: 'TS14-TC03', missing: 'TS14-TC05' },
-  },
-  {
-    name: 'user TSD', state: TSD_STATE, deliveryTab: false,
-    cases: { rates: 'TS10-TC04', counts: 'TS10-TC06', locations: 'TS10-TC07', items: 'TS11-TC04', missing: 'TS10-TC09' },
-  },
-  {
-    name: 'user DLT', state: USER_STATE, deliveryTab: true,
-    cases: { rates: 'TS11-TC01', counts: 'TS11-TC01', locations: 'TS11-TC01', items: 'TS11-TC02', delivery: 'TS11-TC03', missing: 'TS11-TC03' },
-  },
-];
-
 // As the items table and the filters name them
 const TYPE_LABELS = { NORMAL: 'ธรรมดา', REGISTERED: 'ลงทะเบียน', EMS: 'EMS' };
 const LOCATION_LABELS = { BANGKOK: 'กรุงเทพและปริมณฑล', NON_BANGKOK: 'ต่างจังหวัด', ABROAD: 'ต่างประเทศ' };
@@ -50,140 +34,194 @@ function expectWithin(actual, { min, max }, what) {
   expect(actual, `${what} should be ${min === max ? min : `${min}-${max}`}`).toBeLessThanOrEqual(max);
 }
 
-for (const user of USERS) {
-  test.describe(`รายงานข้อมูล ${user.name}`, () => {
-    // One look at the data per user: the expected values take a minute to work out from Back Office
-    test.describe.configure({ mode: 'default', timeout: 3 * 60 * 1000 });
+/**
+ * The dashboard's own numbers for the last 7 days (as `state`'s user sees them) and what they should be, worked out
+ * from the orders the company had received at drop off
+ */
+async function loadDashboard(browser, state) {
+  const { days, startDate, endDate } = lastSevenDays();
+  const query = `period=DAY&startDate=${startDate}&endDate=${endDate}&mode=frontend`;
+  const portal = await openPortal(browser, state);
+  const token = await portal.dashboardPage.goto();
+  const get = async (path) => {
+    const response = await portal.context.request.get(`${env.apiURL}/v1/frontend/${path}`, { headers: { authorization: token } });
+    expect(response.status(), path).toBe(200);
+    return (await response.json()).data;
+  };
+  const { company } = await get('users/profile');
+  const data = {
+    overview: await get(`analytics/overview?${query}`),
+    deliveries: await get(`analytics/order-item-deliveries?${query}`),
+    summary: await get(`analytics/delivery-summary?${query}`),
+  };
+  await portal.close();
 
-    const { days, startDate, endDate } = lastSevenDays();
-    const query = `period=DAY&startDate=${startDate}&endDate=${endDate}&mode=frontend`;
-    let expected;
-    let data;
-
-    test.beforeAll(async ({ browser }) => {
-      const portal = await openPortal(browser, user.state);
-      const token = await portal.dashboardPage.goto();
-      const get = async (path) => {
-        const response = await portal.context.request.get(`${env.apiURL}/v1/frontend/${path}`, { headers: { authorization: token } });
-        expect(response.status(), path).toBe(200);
-        return (await response.json()).data;
-      };
-      const { company } = await get('users/profile');
-      data = {
-        overview: await get(`analytics/overview?${query}`),
-        deliveries: await get(`analytics/order-item-deliveries?${query}`),
-        summary: await get(`analytics/delivery-summary?${query}`),
-      };
-      await portal.close();
-
-      const backOffice = await BackOfficeApi.open(browser);
-      const orders = await receivedOrders(backOffice, company.id, days);
-      await backOffice.close();
-      expected = expectedDashboard(orders, days);
-    });
-
-    test.beforeEach(() => {
-      test.skip(!expected.received, `${user.name} had nothing received at drop off on ${days[0]} - ${days[days.length - 1]}`);
-    });
-
-    test.describe(`${user.cases.counts} ตรวจสอบการแสดงผลจำนวนชิ้นรับฝาก`, () => {
-      test('จำนวนชิ้นรับฝากรายวัน แยกตามบริการ', () => {
-        for (const day of days) {
-          const rows = data.overview.trendChart.filter((r) => bangkokDay(r.timestamp) === day);
-          for (const type of TYPES) {
-            const count = rows.find((r) => r.groupType === type)?.totalCount ?? 0;
-            expectWithin(count, expected.perDay[day].byType[type], `${day} ${type}`);
-          }
-          expect(rows.reduce((sum, r) => sum + r.totalCount, 0), `${day} รวม`).toBe(expected.perDay[day].received);
-        }
-      });
-    });
-
-    test.describe(`${user.cases.locations} ตรวจสอบการแสดงผลจำนวนชิ้นรับฝากตามพื้นที่`, () => {
-      test('จำนวนชิ้นรับฝากตามพื้นที่', () => {
-        for (const location of LOCATIONS) {
-          const count = data.overview.locationPieChart.find((r) => r.locationType === location)?.totalCount ?? 0;
-          expectWithin(count, expected.byLocation[location], location);
-        }
-        expect(data.overview.locationPieChart.reduce((sum, r) => sum + r.totalCount, 0)).toBe(expected.received);
-      });
-    });
-
-    test.describe(`${user.cases.rates} ตรวจสอบการแสดงผลอัตราการนำจ่ายสำเร็จตามบริการ`, () => {
-      test('จำนวนส่งสำเร็จ / ไม่สำเร็จรายวัน และอัตราที่หน้าแสดง', async ({ browser }) => {
-        for (const day of days) {
-          const rows = data.overview.trendChart.filter((r) => bangkokDay(r.timestamp) === day);
-          expectWithin(rows.reduce((sum, r) => sum + r.successCount, 0), expected.perDay[day].success, `${day} ส่งสำเร็จ`);
-          expectWithin(rows.reduce((sum, r) => sum + r.failCount, 0), expected.perDay[day].fail, `${day} ส่งไม่สำเร็จ`);
-        }
-
-        const portal = await openPortal(browser, user.state);
-        await portal.dashboardPage.goto();
-        const text = await portal.dashboardPage.boxText('อัตราการนำจ่ายสำเร็จตามบริการ');
-        for (const [type, label] of [['REGISTERED', 'ลงทะเบียน'], ['EMS', 'EMS']]) {
-          const rows = data.overview.trendChart.filter((r) => r.groupType === type);
-          const rate = percent(rows.reduce((s, r) => s + r.successCount, 0), rows.reduce((s, r) => s + r.totalCount, 0));
-          expect(text).toContain(`${label} ${rate.toFixed(2)} %`);
-        }
-        await portal.close();
-      });
-    });
-
-    test.describe(`${user.cases.items} ตรวจสอบการแสดงผลจำนวนชิ้นงาน`, () => {
-      test('จำนวนชิ้นงานทั้งหมด และรายวัน', async ({ browser }) => {
-        for (const day of days) {
-          const count = data.deliveries.find((r) => bangkokDay(r.timestamp) === day)?.totalCount ?? 0;
-          expect(count, day).toBe(expected.perDay[day].received);
-        }
-
-        const portal = await openPortal(browser, user.state);
-        await portal.dashboardPage.goto();
-        await portal.dashboardPage.openTab('จำนวนชิ้นงาน');
-        const text = await portal.dashboardPage.boxText('จำนวนชิ้นงานทั้งหมด');
-        expect(number(text.match(/จำนวนชิ้นงานทั้งหมด ([\d,]+) ชิ้น/)[1])).toBe(expected.received);
-        await portal.close();
-      });
-    });
-
-    if (user.deliveryTab) {
-      test.describe(`${user.cases.delivery} ตรวจสอบการแสดงผลอัตราการนำจ่าย`, () => {
-        test('อัตราการนำจ่ายสำเร็จ', async ({ browser }) => {
-          const { meta } = data.summary.deliveries;
-          expect(meta.overAllCount).toBe(expected.received);
-          expectWithin(meta.overAllSuccessCount, expected.success, 'ส่งสำเร็จ');
-          expectWithin(meta.overAllFailCount, expected.fail, 'ส่งไม่สำเร็จ');
-
-          const portal = await openPortal(browser, user.state);
-          await portal.dashboardPage.goto();
-          await portal.dashboardPage.openTab('อัตราการนำจ่าย');
-          const text = await portal.dashboardPage.boxText('อัตราการนำจ่ายสำเร็จ');
-          const shown = Number(text.match(/อัตราการนำจ่ายสำเร็จ ([\d.]+) %/)[1]);
-          expect(shown).toBeCloseTo(percent(meta.overAllSuccessCount, meta.overAllCount), 1);
-          await portal.close();
-        });
-      });
-    }
-
-    test.describe(`${user.cases.missing} ตรวจสอบการแสดงผล 10 อันดับสาเหตุในการรับฝากไม่ครบ`, () => {
-      test('สาเหตุรับฝากไม่ครบ นับตามใบนำส่ง', async ({ browser }) => {
-        const { meta, data: ranking } = data.summary.rankings.missingItem;
-        const top = Object.entries(expected.missingReasons).sort(([, a], [, b]) => b - a).slice(0, 10);
-        expect(Object.fromEntries(ranking.map((r) => [r.groupDetail, r.groupCount]))).toEqual(Object.fromEntries(top));
-        expect(meta.overAllGroupCount).toBe(Object.values(expected.missingReasons).reduce((a, b) => a + b, 0));
-        test.skip(!ranking.length, 'no order was partly received in the range');
-
-        const portal = await openPortal(browser, user.state);
-        await portal.dashboardPage.goto();
-        if (user.deliveryTab) await portal.dashboardPage.openTab('อัตราการนำจ่าย');
-        const text = await portal.dashboardPage.boxText('10 อันดับสาเหตุในการรับฝากไม่ครบ');
-        ranking.forEach((r, i) => {
-          expect(text).toContain(`${i + 1}. ${r.groupDetail} ${percent(r.groupCount, meta.overAllGroupCount).toFixed(1)}%`);
-        });
-        await portal.close();
-      });
-    });
-  });
+  const backOffice = await BackOfficeApi.open(browser);
+  const orders = await receivedOrders(backOffice, company.id, days);
+  await backOffice.close();
+  return { state, days, data, expected: expectedDashboard(orders, days) };
 }
+
+function skipWithoutData(dashboard, user) {
+  const { days, expected } = dashboard;
+  test.skip(!expected.received, `${user} had nothing received at drop off on ${days[0]} - ${days[days.length - 1]}`);
+}
+
+/** จำนวนชิ้นรับฝาก per day and type (ภาพรวม) */
+function checkDailyCounts({ days, data, expected }) {
+  for (const day of days) {
+    const rows = data.overview.trendChart.filter((r) => bangkokDay(r.timestamp) === day);
+    for (const type of TYPES) {
+      const count = rows.find((r) => r.groupType === type)?.totalCount ?? 0;
+      expectWithin(count, expected.perDay[day].byType[type], `${day} ${type}`);
+    }
+    expect(rows.reduce((sum, r) => sum + r.totalCount, 0), `${day} รวม`).toBe(expected.perDay[day].received);
+  }
+}
+
+/** จำนวนชิ้นรับฝากตามพื้นที่ (ภาพรวม) */
+function checkLocations({ data, expected }) {
+  for (const location of LOCATIONS) {
+    const count = data.overview.locationPieChart.find((r) => r.locationType === location)?.totalCount ?? 0;
+    expectWithin(count, expected.byLocation[location], location);
+  }
+  expect(data.overview.locationPieChart.reduce((sum, r) => sum + r.totalCount, 0)).toBe(expected.received);
+}
+
+/** อัตราการนำจ่ายสำเร็จตามบริการ (ภาพรวม): delivered / failed per day and the rates the page shows */
+async function checkServiceRates(browser, { state, days, data, expected }) {
+  for (const day of days) {
+    const rows = data.overview.trendChart.filter((r) => bangkokDay(r.timestamp) === day);
+    expectWithin(rows.reduce((sum, r) => sum + r.successCount, 0), expected.perDay[day].success, `${day} ส่งสำเร็จ`);
+    expectWithin(rows.reduce((sum, r) => sum + r.failCount, 0), expected.perDay[day].fail, `${day} ส่งไม่สำเร็จ`);
+  }
+  const portal = await openPortal(browser, state);
+  await portal.dashboardPage.goto();
+  const text = await portal.dashboardPage.boxText('อัตราการนำจ่ายสำเร็จตามบริการ');
+  for (const [type, label] of [['REGISTERED', 'ลงทะเบียน'], ['EMS', 'EMS']]) {
+    const rows = data.overview.trendChart.filter((r) => r.groupType === type);
+    const rate = percent(rows.reduce((s, r) => s + r.successCount, 0), rows.reduce((s, r) => s + r.totalCount, 0));
+    expect(text).toContain(`${label} ${rate.toFixed(2)} %`);
+  }
+  await portal.close();
+}
+
+/** จำนวนชิ้นงานทั้งหมด and per day (จำนวนชิ้นงาน) */
+async function checkItemTotals(browser, { state, days, data, expected }) {
+  for (const day of days) {
+    const count = data.deliveries.find((r) => bangkokDay(r.timestamp) === day)?.totalCount ?? 0;
+    expect(count, day).toBe(expected.perDay[day].received);
+  }
+  const portal = await openPortal(browser, state);
+  await portal.dashboardPage.goto();
+  await portal.dashboardPage.openTab('จำนวนชิ้นงาน');
+  const text = await portal.dashboardPage.boxText('จำนวนชิ้นงานทั้งหมด');
+  expect(number(text.match(/จำนวนชิ้นงานทั้งหมด ([\d,]+) ชิ้น/)[1])).toBe(expected.received);
+  await portal.close();
+}
+
+/** อัตราการนำจ่ายสำเร็จ (อัตราการนำจ่าย, not TSD) */
+async function checkDeliveryRate(browser, { state, data, expected }) {
+  const { meta } = data.summary.deliveries;
+  expect(meta.overAllCount).toBe(expected.received);
+  expectWithin(meta.overAllSuccessCount, expected.success, 'ส่งสำเร็จ');
+  expectWithin(meta.overAllFailCount, expected.fail, 'ส่งไม่สำเร็จ');
+  const portal = await openPortal(browser, state);
+  await portal.dashboardPage.goto();
+  await portal.dashboardPage.openTab('อัตราการนำจ่าย');
+  const text = await portal.dashboardPage.boxText('อัตราการนำจ่ายสำเร็จ');
+  expect(Number(text.match(/อัตราการนำจ่ายสำเร็จ ([\d.]+) %/)[1])).toBeCloseTo(percent(meta.overAllSuccessCount, meta.overAllCount), 1);
+  await portal.close();
+}
+
+/** 10 อันดับสาเหตุในการรับฝากไม่ครบ, counted in orders; on อัตราการนำจ่าย, or on ภาพรวม for TSD (`tab` null) */
+async function checkMissingReasons(browser, { state, data, expected }, tab) {
+  const { meta, data: ranking } = data.summary.rankings.missingItem;
+  const top = Object.entries(expected.missingReasons).sort(([, a], [, b]) => b - a).slice(0, 10);
+  expect(Object.fromEntries(ranking.map((r) => [r.groupDetail, r.groupCount]))).toEqual(Object.fromEntries(top));
+  expect(meta.overAllGroupCount).toBe(Object.values(expected.missingReasons).reduce((a, b) => a + b, 0));
+  test.skip(!ranking.length, 'no order was partly received in the range');
+
+  const portal = await openPortal(browser, state);
+  await portal.dashboardPage.goto();
+  if (tab) await portal.dashboardPage.openTab(tab);
+  const text = await portal.dashboardPage.boxText('10 อันดับสาเหตุในการรับฝากไม่ครบ');
+  ranking.forEach((r, i) => {
+    expect(text).toContain(`${i + 1}. ${r.groupDetail} ${percent(r.groupCount, meta.overAllGroupCount).toFixed(1)}%`);
+  });
+  await portal.close();
+}
+
+// One look at the data per user (in one worker): the expected values take a while to work out from Back Office
+test.describe('รายงานข้อมูล user ปกติ', () => {
+  test.describe.configure({ mode: 'default', timeout: 3 * 60 * 1000 });
+  let dashboard;
+  test.beforeAll(async ({ browser }) => { dashboard = await loadDashboard(browser, NORMAL_STATE); });
+  test.beforeEach(() => skipWithoutData(dashboard, 'user ปกติ'));
+
+  test.describe('TS12-TC06 user ปกติ ตรวจสอบการแสดงผลจำนวนชิ้นรับฝาก', () => {
+    test('user ปกติ: จำนวนชิ้นรับฝากรายวัน แยกตามบริการ', () => checkDailyCounts(dashboard));
+  });
+  test.describe('TS12-TC07 user ปกติ ตรวจสอบการแสดงผลจำนวนชิ้นรับฝากตามพื้นที่', () => {
+    test('user ปกติ: จำนวนชิ้นรับฝากตามพื้นที่', () => checkLocations(dashboard));
+  });
+  test.describe('TS12-TC04 user ปกติ ตรวจสอบการแสดงผลอัตราการนำจ่ายสำเร็จตามบริการ', () => {
+    test('user ปกติ: ส่งสำเร็จ / ไม่สำเร็จรายวัน และอัตราที่หน้าแสดง', ({ browser }) => checkServiceRates(browser, dashboard));
+  });
+  test.describe('TS13-TC04 user ปกติ ตรวจสอบการแสดงผลจำนวนชิ้นงาน', () => {
+    test('user ปกติ: จำนวนชิ้นงานทั้งหมด และรายวัน', ({ browser }) => checkItemTotals(browser, dashboard));
+  });
+  test.describe('TS14-TC03 user ปกติ ตรวจสอบการแสดงผลอัตราการนำจ่าย', () => {
+    test('user ปกติ: อัตราการนำจ่ายสำเร็จ', ({ browser }) => checkDeliveryRate(browser, dashboard));
+  });
+  test.describe('TS14-TC05 user ปกติ ตรวจสอบการแสดงผล 10 อันดับสาเหตุในการรับฝากไม่ครบ', () => {
+    test('user ปกติ: สาเหตุรับฝากไม่ครบ นับตามใบนำส่ง', ({ browser }) => checkMissingReasons(browser, dashboard, 'อัตราการนำจ่าย'));
+  });
+});
+
+// TSD has ค่าบริการ instead of อัตราการนำจ่าย; its ภาพรวม shows the missing-item ranking
+test.describe('รายงานข้อมูล user TSD', () => {
+  test.describe.configure({ mode: 'default', timeout: 3 * 60 * 1000 });
+  let dashboard;
+  test.beforeAll(async ({ browser }) => { dashboard = await loadDashboard(browser, TSD_STATE); });
+  test.beforeEach(() => skipWithoutData(dashboard, 'user TSD'));
+
+  test.describe('TS10-TC06 user TSD ตรวจสอบการแสดงผลจำนวนชิ้นรับฝาก', () => {
+    test('user TSD: จำนวนชิ้นรับฝากรายวัน แยกตามบริการ', () => checkDailyCounts(dashboard));
+  });
+  test.describe('TS10-TC07 user TSD ตรวจสอบการแสดงผลจำนวนชิ้นรับฝากตามพื้นที่', () => {
+    test('user TSD: จำนวนชิ้นรับฝากตามพื้นที่', () => checkLocations(dashboard));
+  });
+  test.describe('TS10-TC04 user TSD ตรวจสอบการแสดงผลอัตราการนำจ่ายสำเร็จตามบริการ', () => {
+    test('user TSD: ส่งสำเร็จ / ไม่สำเร็จรายวัน และอัตราที่หน้าแสดง', ({ browser }) => checkServiceRates(browser, dashboard));
+  });
+  test.describe('TS11-TC04 user TSD ตรวจสอบการแสดงผลจำนวนชิ้นงาน', () => {
+    test('user TSD: จำนวนชิ้นงานทั้งหมด และรายวัน', ({ browser }) => checkItemTotals(browser, dashboard));
+  });
+  test.describe('TS10-TC09 user TSD ตรวจสอบการแสดงผล 10 อันดับสาเหตุในการรับฝากไม่ครบ', () => {
+    test('user TSD: สาเหตุรับฝากไม่ครบ นับตามใบนำส่ง', ({ browser }) => checkMissingReasons(browser, dashboard, null));
+  });
+});
+
+test.describe('รายงานข้อมูล user DLT', () => {
+  test.describe.configure({ mode: 'default', timeout: 3 * 60 * 1000 });
+  let dashboard;
+  test.beforeAll(async ({ browser }) => { dashboard = await loadDashboard(browser, USER_STATE); });
+  test.beforeEach(() => skipWithoutData(dashboard, 'user DLT'));
+
+  test.describe('TS11-TC01 user DLT ตรวจสอบการแสดงผล แท็บรายงานภาพรวม', () => {
+    test('user DLT: จำนวนชิ้นรับฝากรายวัน แยกตามบริการ', () => checkDailyCounts(dashboard));
+    test('user DLT: จำนวนชิ้นรับฝากตามพื้นที่', () => checkLocations(dashboard));
+    test('user DLT: ส่งสำเร็จ / ไม่สำเร็จรายวัน และอัตราที่หน้าแสดง', ({ browser }) => checkServiceRates(browser, dashboard));
+  });
+  test.describe('TS11-TC02 user DLT ตรวจสอบการแสดง แท็บผลจำนวนชิ้นงาน', () => {
+    test('user DLT: จำนวนชิ้นงานทั้งหมด และรายวัน', ({ browser }) => checkItemTotals(browser, dashboard));
+  });
+  test.describe('TS11-TC03 user DLT ตรวจสอบการแสดง อัตรานำจ่าย', () => {
+    test('user DLT: อัตราการนำจ่ายสำเร็จ', ({ browser }) => checkDeliveryRate(browser, dashboard));
+    test('user DLT: สาเหตุรับฝากไม่ครบ นับตามใบนำส่ง', ({ browser }) => checkMissingReasons(browser, dashboard, 'อัตราการนำจ่าย'));
+  });
+});
 
 // The filters work the same for every user, so they are checked as the normal user only
 test.describe('รายงานข้อมูล ตัวกรองและการค้นหา (user ปกติ)', () => {
@@ -208,8 +246,8 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
     test.skip(!orders.length, `nothing received at drop off on ${days[0]} - ${days[days.length - 1]}`);
   });
 
-  test.describe('TS12-TC01 ผู้ใช้งานสามารถเห็นหน้า "รายงานข้อมูล"', () => {
-    test('ตัวเลือกช่วงวันที่ และช่วงของ 28 วันที่ผ่านมา', async ({ browser }) => {
+  test.describe('TS12-TC01 user ปกติ ผู้ใช้งานสามารถเห็นหน้า "รายงานข้อมูล"', () => {
+    test('user ปกติ: ตัวเลือกช่วงวันที่ และช่วงของ 28 วันที่ผ่านมา', async ({ browser }) => {
       const { dashboardPage: d, page, close } = await openPortal(browser, NORMAL_STATE);
       await d.goto();
       expect(await d.dateLabel()).toContain(`7 วันที่ผ่านมา : ${rangeLabel(days)}`);
@@ -225,8 +263,8 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
     });
   });
 
-  test.describe('TS12-TC02 ตรวจสอบการแสดงผลข้อมูล', () => {
-    test('กำหนดเอง ตัวเลขเปลี่ยนตามช่วงที่เลือก', async ({ browser }) => {
+  test.describe('TS12-TC02 user ปกติ ตรวจสอบการแสดงผลข้อมูล', () => {
+    test('user ปกติ: กำหนดเอง ตัวเลขเปลี่ยนตามช่วงที่เลือก', async ({ browser }) => {
       const { dashboardPage: d, close } = await openPortal(browser, NORMAL_STATE);
       await d.goto();
       await d.openTab('จำนวนชิ้นงาน');
@@ -243,8 +281,8 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
     });
   });
 
-  test.describe('TS13-TC02 ตรวจสอบการกรอง', () => {
-    test('กรองประเภทบริการ ทีละค่า หลายค่า และล้างตัวกรอง', async ({ browser }) => {
+  test.describe('TS13-TC02 user ปกติ ตรวจสอบการกรอง', () => {
+    test('user ปกติ: กรองประเภทบริการ ทีละค่า หลายค่า และล้างตัวกรอง', async ({ browser }) => {
       const { dashboardPage: d, close } = await openPortal(browser, NORMAL_STATE);
       await d.goto();
       await d.openTab('จำนวนชิ้นงาน');
@@ -261,7 +299,7 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
       await close();
     });
 
-    test('กรองพื้นที่บริการ และกรองร่วมกับประเภทบริการ', async ({ browser }) => {
+    test('user ปกติ: กรองพื้นที่บริการ และกรองร่วมกับประเภทบริการ', async ({ browser }) => {
       const { dashboardPage: d, close } = await openPortal(browser, NORMAL_STATE);
       await d.goto();
       await d.openTab('จำนวนชิ้นงาน');
@@ -278,8 +316,8 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
     });
   });
 
-  test.describe('TS13-TC03 ตรวจสอบการค้นหาด้วยข้อมูลต่างๆ', () => {
-    test('ค้นหาหมายเลขอ้างอิงบางส่วน และค้นหาไม่พบ', async ({ browser }) => {
+  test.describe('TS13-TC03 user ปกติ ตรวจสอบการค้นหาด้วยข้อมูลต่างๆ', () => {
+    test('user ปกติ: ค้นหาหมายเลขอ้างอิงบางส่วน และค้นหาไม่พบ', async ({ browser }) => {
       const { dashboardPage: d, page, close } = await openPortal(browser, NORMAL_STATE);
       await d.goto();
       await d.openTab('จำนวนชิ้นงาน');
@@ -296,7 +334,7 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
     });
   });
 
-  test.describe('TS14-TC02 ตรวจสอบการกรอง', () => {
+  test.describe('TS14-TC02 user ปกติ ตรวจสอบการกรอง', () => {
     /** อัตราการนำจ่ายสำเร็จ as the page shows it, waited on until it is `rate` */
     async function expectRate(dashboardPage, rate) {
       await expect.poll(async () => {
@@ -305,7 +343,7 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
       }).toBeCloseTo(rate, 1);
     }
 
-    test('อัตราการนำจ่าย กรองประเภทบริการ และพื้นที่บริการ', async ({ browser }) => {
+    test('user ปกติ: อัตราการนำจ่าย กรองประเภทบริการ และพื้นที่บริการ', async ({ browser }) => {
       const { dashboardPage: d, close } = await openPortal(browser, NORMAL_STATE);
       await d.goto();
       const all = await d.countAfter(() => d.openTab('อัตราการนำจ่าย'));
@@ -327,7 +365,7 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
       await close();
     });
 
-    test('อัตราการนำจ่าย กรองหมายเลขใบนำส่ง และค้นหาหมายเลขอ้างอิง', async ({ browser }) => {
+    test('user ปกติ: อัตราการนำจ่าย กรองหมายเลขใบนำส่ง และค้นหาหมายเลขอ้างอิง', async ({ browser }) => {
       const { dashboardPage: d, page, close } = await openPortal(browser, NORMAL_STATE);
       await d.goto();
       await d.openTab('อัตราการนำจ่าย');
@@ -369,8 +407,8 @@ test.describe('รายงานข้อมูล การค้นหา (us
     await backOffice.close();
   });
 
-  test.describe('TS11-TC03 ตรวจสอบการค้นหาด้วยข้อมูลต่างๆ', () => {
-    test('ค้นหาด้วยทุกประเภทการค้นหา และค้นหาไม่พบ', async ({ browser }) => {
+  test.describe('TS11-TC03 user TSD ตรวจสอบการค้นหาด้วยข้อมูลต่างๆ', () => {
+    test('user TSD: ค้นหาด้วยทุกประเภทการค้นหา และค้นหาไม่พบ', async ({ browser }) => {
       test.skip(!orders.length, `nothing received at drop off on ${days[0]} - ${days[days.length - 1]}`);
       const order = orders[0];
       const item = order.items[0];
@@ -435,8 +473,8 @@ test.describe('รายงานข้อมูล ค่าบริการ 
     return { portal, shown, inRange };
   }
 
-  test.describe('TS12-TC05 ตรวจสอบการแสดงผลค่าบริการ', () => {
-    test('ค่าบริการทั้งหมด และรายเดือน ตามวันที่ยืนยันใบสรุปยอด', async ({ browser }) => {
+  test.describe('TS12-TC05 user TSD ตรวจสอบการแสดงผลค่าบริการ', () => {
+    test('user TSD: ค่าบริการทั้งหมด และรายเดือน ตามวันที่ยืนยันใบสรุปยอด', async ({ browser }) => {
       const { portal, shown, inRange } = await openAllTime(browser);
       expect(shown.total).toBeCloseTo(sumOf(inRange), 2);
       const months = {};
@@ -448,8 +486,8 @@ test.describe('รายงานข้อมูล ค่าบริการ 
     });
   });
 
-  test.describe('TS12-TC04 ตรวจสอบการกรอง', () => {
-    test('กรองประเภทบริการ ผลรวมทุกประเภทเท่ากับค่าบริการทั้งหมด', async ({ browser }) => {
+  test.describe('TS12-TC04 user TSD ตรวจสอบการกรอง', () => {
+    test('user TSD: กรองประเภทบริการ ผลรวมทุกประเภทเท่ากับค่าบริการทั้งหมด', async ({ browser }) => {
       const { portal, shown } = await openAllTime(browser);
       const d = portal.dashboardPage;
       const byType = {};
@@ -466,7 +504,7 @@ test.describe('รายงานข้อมูล ค่าบริการ 
       await portal.close();
     });
 
-    test('กรองหมายเลขใบนำส่ง และค้นหาหมายเลขอ้างอิง', async ({ browser }) => {
+    test('user TSD: กรองหมายเลขใบนำส่ง และค้นหาหมายเลขอ้างอิง', async ({ browser }) => {
       const { portal, inRange } = await openAllTime(browser);
       const d = portal.dashboardPage;
 
