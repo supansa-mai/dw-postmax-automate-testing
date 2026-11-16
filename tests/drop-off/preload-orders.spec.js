@@ -152,7 +152,8 @@ const statusOf = (received) => (item) => (received.includes(item) ? RECEIVED : N
 test.describe('Drop Off: ใบนำส่งที่สร้างจากไฟล์ CSV ของ user ปกติ และ user TSD', () => {
   test.use({ storageState: DROPOFF_STATE });
 
-  // One order per user, received in full ("ทั้งหมด"), for every case below; they run in this order
+  // One order per user, received in full ("ทั้งหมด"), for every case below; they run in this order. Some items go to
+  // rural areas (preloadRows), which Drop Off shows as EMS พื้นที่พิเศษ
   test.describe('รับฝากทั้งใบ (ใช้ใบเดียวกัน รันตามลำดับ)', () => {
     test.describe.configure({ mode: 'serial' });
     let backOffice;
@@ -161,7 +162,8 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
     test.beforeAll(async ({ browser }, testInfo) => {
       testInfo.setTimeout(4 * 60 * 1000);
       backOffice = await BackOfficeApi.open(browser);
-      for (const user of CSV_USERS) orders[user.name] = await createCsvOrder(browser, user);
+      const ruralAreas = await backOffice.ruralAreas();
+      for (const user of CSV_USERS) orders[user.name] = await createCsvOrder(browser, user, { ruralAreas });
     });
 
     test.afterAll(async () => {
@@ -200,6 +202,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
           const eArs = labels('eAr', 'บริการ e-AR');
           const rows = await d.tableRows(d.serviceTable);
           const total = rows.pop();
+          expect(rows.map(([label]) => label), 'rows of the items in rural areas').toContain('EMS พื้นที่พิเศษ');
           expect(sortRows(rows)).toEqual(sortRows(preloadedSummary.map((row) => [serviceLabel(row), services[row.service],
             eArs[row.eArService], row.weight, money(row.basePrice), String(row.total), money(row.totalPrice)])));
           const price = preloadedSummary.reduce((sum, row) => sum + Number(row.totalPrice), 0);
