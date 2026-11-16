@@ -55,6 +55,8 @@ class DashboardPage extends BasePage {
       await this.page.keyboard.press('ControlOrMeta+a');
       await this.page.keyboard.type(value.replace(/\//g, ''));
     }
+    // The end date is only taken on blur; until then ยืนยัน stays disabled
+    await this.page.keyboard.press('Tab');
     await modal.getByRole('button', { name: 'ยืนยัน' }).click();
     await this.page.waitForLoadState('networkidle');
   }

@@ -279,6 +279,33 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
       await expectItemTotal(d, orders.filter((o) => custom.days.includes(o.day)).reduce((sum, o) => sum + o.received, 0), 'กำหนดเอง');
       await close();
     });
+
+    // CPM-1845: every date range picker clears its end date when a new start date is picked
+    test('user ปกติ: กำหนดเอง เปลี่ยนวันที่เริ่มต้น ล้างวันที่สิ้นสุด', async ({ browser }) => {
+      const { dashboardPage: d, page, close } = await openPortal(browser, NORMAL_STATE);
+      await d.goto();
+      await d.pickDateOption('กำหนดเอง');
+      const modal = d.customRangeModal();
+      const [start, end] = [modal.getByRole('textbox').first(), modal.getByRole('textbox').last()];
+      const confirm = modal.getByRole('button', { name: 'ยืนยัน' });
+      // Opens on the range in use
+      await expect(start).toHaveValue(fieldDate(days[0]));
+      await expect(end).toHaveValue(fieldDate(days[days.length - 1]));
+
+      await start.click();
+      await page.keyboard.press('ControlOrMeta+a');
+      await page.keyboard.type(fieldDate(days[1]).replace(/\//g, ''));
+      await page.keyboard.press('Tab');
+      await expect(end).toHaveValue('');
+      await expect(confirm).toBeDisabled();
+
+      await end.click();
+      await page.keyboard.type(fieldDate(days[days.length - 1]).replace(/\//g, ''));
+      await page.keyboard.press('Tab');
+      await expect(modal).toContainText(`เลือกไว้แล้ว ${days.length - 1} วัน`);
+      await expect(confirm).toBeEnabled();
+      await close();
+    });
   });
 
   test.describe('TS13-TC02 user ปกติ ตรวจสอบการกรอง', () => {

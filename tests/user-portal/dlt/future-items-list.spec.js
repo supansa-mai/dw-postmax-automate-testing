@@ -183,6 +183,29 @@ test.describe('Future Items list (DLT)', () => {
       await expect(futureItemsPage.batchFilter).toBeDisabled();
     });
 
+    // CPM-1845: every date range picker clears its end date when a new start date is picked
+    test('เปลี่ยนวันที่เริ่มต้น ล้างวันที่สิ้นสุด', async ({ futureItemsPage }) => {
+      const yesterday = thaiDate(daysFromNow(-1));
+      for (const pickStart of [
+        async () => { await futureItemsPage.startDate.fill(TODAY); await futureItemsPage.startDate.blur(); },
+        async () => { await futureItemsPage.openCalendar('start'); await futureItemsPage.calendarDay(Number(TODAY.slice(0, 2))).click(); },
+      ]) {
+        await futureItemsPage.selectDateRange(yesterday, TODAY);
+        await expect(futureItemsPage.grid).toBeVisible();
+        await pickStart();
+        await expect(futureItemsPage.startDate).toHaveValue(TODAY);
+        await expect(futureItemsPage.endDate).toHaveValue('');
+        await expect(futureItemsPage.emptyState).toBeVisible();
+        await expect(futureItemsPage.grid).toBeHidden();
+      }
+
+      await futureItemsPage.selectDateRange(yesterday, TODAY);
+      await futureItemsPage.endDate.fill(yesterday);
+      await futureItemsPage.endDate.blur();
+      await expect(futureItemsPage.startDate).toHaveValue(yesterday);
+      await expect(futureItemsPage.grid).toBeVisible();
+    });
+
     test('เลือกวันที่ผ่านปฏิทิน แสดงข้อมูล', async ({ futureItemsPage }) => {
       const today = Number(TODAY.slice(0, 2));
       await futureItemsPage.openCalendar('start');
