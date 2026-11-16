@@ -398,6 +398,38 @@ test.describe('Create order from future items (DLT)', () => {
     });
   });
 
+  test.describe('TS08-TC06 กดยืนยันสร้างใบนำส่งรายการเดียวกันพร้อมกัน 2 เครื่อง (user เดียวกัน)', () => {
+    test('เครื่องหนึ่งสร้างสำเร็จ อีกเครื่องแสดงสร้างใบนำส่งไม่สำเร็จ ไม่ค้าง', async ({ browser, createFutureItemPage: p }) => {
+      const [item] = groups.orderedTwiceAtOnce.paid;
+      const other = await openAnotherBrowser(browser);
+      await other.createPage.goto();
+      const pages = [p, other.createPage];
+      for (const createPage of pages) {
+        await createPage.scanItems([item]);
+        await createPage.createButton.click();
+      }
+      const confirms = pages.map((createPage) => createPage.dialog('สร้างใบนำส่ง?').getByRole('button', { name: 'ยืนยัน' }));
+      for (const confirm of confirms) await expect(confirm).toBeVisible();
+
+      // CPM-1842: confirmed at once, both requests once hung for a minute (504) and left order creation locked (429)
+      const responses = pages.map((createPage) => createPage.page.waitForResponse(
+        (r) => /future-items\/consignments/.test(r.url()) && r.request().method() === 'POST', { timeout: 15000 },
+      ));
+      await Promise.all(confirms.map((confirm) => confirm.click()));
+      const statuses = (await Promise.all(responses)).map((r) => r.status());
+      expect([...statuses].sort()).toEqual([201, 409]);
+
+      const [winner, loser] = statuses[0] === 201 ? pages : [...pages].reverse();
+      await expect(winner.page).toHaveURL(/\/th\/orders/);
+      const dialog = loser.dialog(ORDER_FAILED);
+      await expect(dialog).toContainText(item.trackingNumber);
+      await expect(dialog).toContainText(item.refCode);
+      await dialog.getByRole('button').last().click();
+      await expect(loser.total).toHaveText('ทั้งหมด 0 รายการ');
+      await other.context.close();
+    });
+  });
+
   test.describe('TS05-TC04 ตรวจสอบการยกเลิกรายการที่อยู่ระหว่างนำเข้าในหน้าสร้างใบนำส่ง', () => {
     test('รายการถูกยกเลิกจากอีก browser ระบบเอาออกให้', async ({ browser, createFutureItemPage: p }) => {
       const { batchRef, paid: [cancelled, kept] } = groups.cancelledElsewhere;

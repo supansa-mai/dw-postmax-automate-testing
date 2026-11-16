@@ -26,6 +26,8 @@ const GROUPS = {
   ordered: { paid: 1 },
   orderedElsewhere: { paid: 2 },
   cancelledElsewhere: { paid: 2 },
+  // TS08-TC06: confirmed from two browsers at once
+  orderedTwiceAtOnce: { paid: 1 },
   // Put in the orders below; three of `order`'s go to rural areas (createBatch's ruralAreas), mixed with two elsewhere,
   // for TS09-TC05: an order from future items has no rural area fee
   order: { paid: 5, rural: true },
