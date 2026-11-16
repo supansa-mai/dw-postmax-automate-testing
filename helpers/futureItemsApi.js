@@ -1,7 +1,7 @@
 const { randomInt } = require('crypto');
 const { expect } = require('@playwright/test');
 const { buildHmacHeaders } = require('./hmac');
-const { randomThaiName, randomThaiPhone, randomEmail, randomThaiAddress, randomThaiPostalCode, randomWeight } = require('./testData');
+const { randomThaiName, randomThaiPhone, randomEmail, randomThaiAddress, randomThaiPostalCode, randomWeight, ruralPicks } = require('./testData');
 
 const PATH = '/v1/frontend/future-items';
 const MAX_ATTEMPTS_ON_429 = 10;
@@ -95,11 +95,25 @@ function buildPayload({ refCodes = uniqueRefCodes(1), batchRef = uniqueBatchRef(
 }
 
 /**
- * Creates `count` future items in one batch; returns them with id / trackingNumber / paymentStatus.
- * Pass `refCodes` (e.g. uniqueNumericRefCodes for EOD items) to choose them, otherwise they are letters + digits
+ * Sends the first items of `items` to rural areas (Back Office's): a postal code rural as a whole, one rural only
+ * where the address has the area's name, and that postal code without the name, which is not rural
  */
-async function createBatch(api, count, batchRef, refCodes = uniqueRefCodes(count)) {
+function toRuralAreas(items, ruralAreas) {
+  const { wholeCode, named } = ruralPicks(ruralAreas);
+  const [whole, inArea, outsideArea] = items;
+  if (whole) whole.receiverPostalCode = wholeCode();
+  if (inArea) Object.assign(inArea, { receiverPostalCode: named.postalCode, receiverAddress: `${inArea.receiverAddress} ${named.area}` });
+  if (outsideArea) outsideArea.receiverPostalCode = named.postalCode;
+}
+
+/**
+ * Creates `count` future items in one batch; returns them with id / trackingNumber / paymentStatus.
+ * Pass `refCodes` (e.g. uniqueNumericRefCodes for EOD items) to choose them, otherwise they are letters + digits;
+ * with `ruralAreas` (BackOfficeApi fees().rural.areas) the first three go to rural areas (toRuralAreas)
+ */
+async function createBatch(api, count, batchRef, refCodes = uniqueRefCodes(count), { ruralAreas } = {}) {
   const payload = buildPayload({ refCodes, ...(batchRef && { batchRef }) });
+  if (ruralAreas) toRuralAreas(payload.items, ruralAreas);
   const response = await api.create(payload);
   expect(response.status(), await response.text()).toBe(201);
   const { data } = await response.json();

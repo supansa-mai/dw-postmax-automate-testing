@@ -6,7 +6,7 @@ const { NORMAL_STATE, TSD_STATE } = require('../config/auth');
 const { openPortal } = require('./portal');
 const { uniqueBatchRef } = require('./futureItemsApi');
 const { readDownload, parseCsv } = require('./orderData');
-const { randomThaiName, randomThaiPhone, randomEmail, randomThaiAddress, randomThaiPostalCode } = require('./testData');
+const { randomThaiName, randomThaiPhone, randomEmail, randomThaiAddress, randomThaiPostalCode, ruralPicks } = require('./testData');
 // One country per registered-mail zone (1-22) that also has an EMS zone, from Back Office > จัดการโซน (dev, Nov 2026);
 // international fees are per zone, so more countries of the same zone would test nothing new. Each must have both
 // zones on UAT too, whose zones differ (no BAHRAIN, no EMS zone for ALGERIA)
@@ -66,20 +66,19 @@ const canGoAbroad = (serviceCode) => /^(MAIL-R|MAIL-EAR|EMS)/.test(serviceCode);
  * rows in turn; ID is the running number like the template's
  */
 function preloadRows(template, ref1, { ruralAreas } = {}) {
-  const wholeCodes = ruralAreas?.filter((a) => !a.area);
-  const named = ruralAreas && pick(ruralAreas.filter((a) => a.area && !wholeCodes.some((w) => w.postalCode === a.postalCode)));
+  const rural = ruralAreas && ruralPicks(ruralAreas);
   const pricedRow = randomInt(0, Object.keys(SERVICE_CODES).length);
   return Object.keys(SERVICE_CODES).map((serviceCode, i) => {
     let address = randomThaiAddress();
     let postalCode = randomThaiPostalCode();
     const ruralCase = ruralAreas && [...RURAL_CODES, UNNAMED_AREA_CODE].includes(serviceCode);
     if (ruralAreas && serviceCode === NAMED_AREA_CODE) {
-      address = `${address} ${named.area}`;
-      postalCode = named.postalCode;
+      address = `${address} ${rural.named.area}`;
+      postalCode = rural.named.postalCode;
     } else if (ruralAreas && serviceCode === UNNAMED_AREA_CODE) {
-      postalCode = named.postalCode;
+      postalCode = rural.named.postalCode;
     } else if (ruralAreas && RURAL_CODES.includes(serviceCode)) {
-      postalCode = pick(wholeCodes).postalCode;
+      postalCode = rural.wholeCode();
     }
     const abroad = !ruralCase && canGoAbroad(serviceCode) && randomInt(0, 3) === 0;
     const insured = randomInt(0, 2) === 0;

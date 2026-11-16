@@ -4,6 +4,7 @@
 const { test, expect } = require('../fixtures');
 const { env, ENV_NAME } = require('../config/environments');
 const { FutureItemsApi, createBatch, uniqueNumericRefCodes } = require('../helpers/futureItemsApi');
+const { BackOfficeApi } = require('../helpers/backOfficeApi');
 const { EodBucket } = require('../helpers/eodBucket');
 const { unknownRefCode } = require('../helpers/eodFile');
 const { saveEodItems } = require('../helpers/eodItems');
@@ -25,24 +26,29 @@ const GROUPS = {
   ordered: { paid: 1 },
   orderedElsewhere: { paid: 2 },
   cancelledElsewhere: { paid: 2 },
-  // Put in the orders below
-  order: { paid: 3 },
+  // Put in the orders below; three of `order`'s go to rural areas (createBatch's ruralAreas), mixed with two elsewhere,
+  // for TS09-TC05: an order from future items has no rural area fee
+  order: { paid: 5, rural: true },
   // 3 items: TS10-TC05 updates one to each delivery status
   receiveOrder: { paid: 3 },
   partialReceiveOrder: { paid: 3 },
 };
 
-test('upload EOD file and wait for the reconcile job', async ({ request, futureItemsApi, futureItemsPage, createFutureItemPage }) => {
+test('upload EOD file and wait for the reconcile job', async ({ browser, request, futureItemsApi, futureItemsPage, createFutureItemPage }) => {
   const { eod, dltB } = env;
   expect(eod.bucket && eod.prefix && eod.accessKeyId && eod.secretAccessKey && eod.companyAccount,
     'EOD_S3_* / EOD_COMPANY_ACCOUNT not set in .env').toBeTruthy();
   const company = env.eodCompanies?.dlt;
   expect(company, `eodCompanies.dlt not set for ${ENV_NAME} in config/environments.js`).toBeTruthy();
 
+  const backOffice = await BackOfficeApi.open(browser);
+  const ruralAreas = await backOffice.ruralAreas();
+  await backOffice.close();
+
   const groups = {};
-  for (const [name, { paid, unpaid = 0 }] of Object.entries(GROUPS)) {
+  for (const [name, { paid, unpaid = 0, rural }] of Object.entries(GROUPS)) {
     const refCodes = uniqueNumericRefCodes(paid + unpaid, company.refDigits);
-    const { batchRef, items } = await createBatch(futureItemsApi, paid + unpaid, undefined, refCodes);
+    const { batchRef, items } = await createBatch(futureItemsApi, paid + unpaid, undefined, refCodes, rural ? { ruralAreas } : {});
     // TS03-TC03 step 2: an item sent before the EOD file starts unpaid
     for (const item of items) expect(item.paymentStatus).toBe('UNPAID');
     groups[name] = { batchRef, paid: items.slice(0, paid), unpaid: items.slice(paid) };

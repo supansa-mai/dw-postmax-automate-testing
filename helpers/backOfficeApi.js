@@ -60,7 +60,7 @@ class BackOfficeApi {
         .then((data) => [type, data.countryZones]))),
       this.get(`e-ar-prices/date?dropOffAt=${at}`),
       this.get(`service-prices/date?dropOffAt=${at}`),
-      this.get(`rural-areas/date?dropOffAt=${at}&page=1&perPage=1000&orderBy=postalCode&orderDirection=asc`),
+      this.ruralAreas(date, { withPrice: true }),
     ]);
     const international = {};
     return {
@@ -68,11 +68,19 @@ class BackOfficeApi {
       zones: Object.fromEntries(zones),
       eAr: Object.fromEntries(eAr.eArPrices.map((p) => [p.eArService, Number(p.basePrice)])),
       service: Object.fromEntries(service.servicePrices.map((p) => [p.service, Number(p.basePrice)])),
-      rural: { price: Number(rural.basePrice), areas: rural.ruralAreas.map(({ postalCode, area }) => ({ postalCode, area })) },
+      rural,
       /** Weight bands of a registered / EMS zone abroad */
       international: (type, zone) => (international[`${type}${zone}`] ??= this.get(`international-order-type-prices/date?dropOffAt=${at}&type=${type}&zone=${zone}`)
         .then((data) => data.internationalOrderTypePrices)),
     };
+  }
+
+  /** Rural areas in force on `date` (จัดการพื้นที่พิเศษ): [{ postalCode, area }]; with `withPrice`, { price, areas } */
+  async ruralAreas(date = new Date(), { withPrice = false } = {}) {
+    const at = encodeURIComponent(startOfBangkokDay(date));
+    const data = await this.get(`rural-areas/date?dropOffAt=${at}&page=1&perPage=1000&orderBy=postalCode&orderDirection=asc`);
+    const areas = data.ruralAreas.map(({ postalCode, area }) => ({ postalCode, area }));
+    return withPrice ? { price: Number(data.basePrice), areas } : areas;
   }
 
   async order(id) {

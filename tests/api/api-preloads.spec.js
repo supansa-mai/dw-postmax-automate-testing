@@ -44,7 +44,8 @@ const USERS = [
  */
 async function buildPreload(user, fees, { breakRow, editRows, editCsv = (csv) => csv } = {}) {
   const reference = uniqueBatchRef();
-  const rows = preloadRows(blankTemplate(user.columns), reference);
+  // Some rows go to rural areas, whose EMS fee the summary adds (preloadRows)
+  const rows = preloadRows(blankTemplate(user.columns), reference, { ruralAreas: fees.rural.areas });
   const total = rows.reduce((sum, row) => sum + Number(row['ราคาต่อชิ้น'] || 0), 0);
   const brokenRow = breakRow && rows.find((row) => !row['ราคาต่อชิ้น']);
   breakRow?.(brokenRow);
@@ -140,6 +141,7 @@ test.describe('Public API preload (/v1/public/preloads/tsd)', () => {
         const detail = await backOffice.order(order.id);
         expectCompanyOf(user, detail);
         expect(detail).toMatchObject({ documentType: fields.documentType, releaseDate: fields.releaseDate });
+        expect(summary.some((row) => row.zone === -1), 'EMS rows in a rural area').toBe(true);
         expect(bySummaryKey(detail.preloadedSummary)).toEqual(bySummaryKey(summary));
       });
 

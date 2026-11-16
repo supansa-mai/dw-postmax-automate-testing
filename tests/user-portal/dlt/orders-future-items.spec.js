@@ -67,7 +67,7 @@ test.describe('Orders created from future items (DLT)', () => {
   });
 
   test.describe('TS09-TC05 ตรวจสอบราคาต่อชิ้นของใบนำส่งจากรายการล่วงหน้า ตามค่าบริการใน Back Office', () => {
-    test('ราคาแต่ละรายการ = ค่าส่ง EMS + Plus DLT (+ พื้นที่พิเศษ)', async ({ page, browser, ordersPage, orderDetailPage: d }) => {
+    test('ราคาแต่ละรายการ = ค่าส่ง EMS + Plus DLT ไม่คิดค่าพื้นที่พิเศษ', async ({ page, browser, ordersPage, orderDetailPage: d }) => {
       await ordersPage.goto();
       await ordersPage.openDetail(order.number);
       await expect(d.serviceTable.getByRole('row').last()).toContainText('รวมทั้งหมด');
@@ -78,7 +78,11 @@ test.describe('Orders created from future items (DLT)', () => {
       const items = order.items.map((item) => ({
         type: 'EMS', service: 'PLUS_DLT', eAr: 'NON', weight: item.weight, postalCode: item.receiverPostalCode, address: item.receiverAddress,
       }));
-      const expected = await expectedSummary(fees, items);
+      // eod.setup sends two of the order's items to rural areas, one to a rural postal code outside its area, the rest elsewhere
+      const inRuralAreas = (await expectedSummary(fees, items)).filter((row) => row.zone === -1);
+      expect(inRuralAreas.reduce((sum, row) => sum + row.total, 0), 'items in rural areas').toBe(2);
+      // Future items have no rural area fee, even in a rural area (requirement, Nov 2026)
+      const expected = await expectedSummary({ ...fees, rural: { ...fees.rural, areas: [] } }, items);
       const { preloadedSummary } = await backOffice.order(id);
       await backOffice.close();
       expect(bySummaryKey(preloadedSummary)).toEqual(bySummaryKey(expected));
