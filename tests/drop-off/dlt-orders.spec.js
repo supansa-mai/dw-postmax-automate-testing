@@ -1,7 +1,7 @@
 const { test, expect } = require('../../fixtures');
 const { DROPOFF_STATE } = require('../../config/auth');
 const { openPortal } = require('../../helpers/portal');
-const { ENV_NAME, scaled } = require('../../config/environments');
+const { scaled } = require('../../config/environments');
 const { readEodItems } = require('../../helpers/eodItems');
 const { BackOfficeApi } = require('../../helpers/backOfficeApi');
 const { readDownload, parseCsv, countBy, grams } = require('../../helpers/orderData');
@@ -204,7 +204,6 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
       });
 
       test('อัปเดตสถานะกำลังจัดส่ง / ส่งสำเร็จ / ส่งไม่สำเร็จ แสดงในรายละเอียดใบนำส่งและรายพัสดุ', async ({ browser }) => {
-        test.skip(ENV_NAME !== 'dev', 'the Thai Post status mock (PATCH order-items/:tracking/status) is only known to be on dev');
         const [inTransit, delivered, failed] = receiveOrder.items;
         const backOffice = await BackOfficeApi.open(browser);
         const { id } = await backOffice.findOrder(receiveOrder.number);

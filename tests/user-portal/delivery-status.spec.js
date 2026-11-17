@@ -1,5 +1,5 @@
 const { test, expect } = require('../../fixtures');
-const { env, ENV_NAME, scaled } = require('../../config/environments');
+const { env, scaled } = require('../../config/environments');
 const { DROPOFF_STATE } = require('../../config/auth');
 const { openPortal } = require('../../helpers/portal');
 const { CSV_USERS, createCsvOrder } = require('../../helpers/preloadCsv');
@@ -136,7 +136,6 @@ async function expectNinetyPercentTime(portal, backOffice, order, hours) {
 }
 
 test.describe('อัปเดตสถานะจัดส่ง (mock สถานะจากไปรษณีย์)', () => {
-  test.skip(ENV_NAME !== 'dev', 'the Thai Post status mock (PATCH order-items/:tracking/status) is only known to be on dev');
   test.describe.configure({ timeout: scaled(4 * 60 * 1000) });
 
   let backOffice;
