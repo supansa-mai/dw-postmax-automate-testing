@@ -24,7 +24,6 @@ const EXPIRED_DROP_OFF = { code: 'EMS-STD', trackingNumber: 'JZ000002182TH' };
 const INVALID_EMAIL = (row) => { row['อีเมล'] = 'not-an-email'; };
 const INVALID_COUNTRY = (row) => { row['ประเทศ'] = 'NOWHERELAND'; row['รหัสไปรษณีย์'] = '99999'; };
 // Ordinary mail has no international service
-const NORMAL_MAIL_ABROAD = (row) => { row['รหัสบริการ'] = 'MAIL-STD'; row['ประเทศ'] = 'JAPAN'; row['รหัสไปรษณีย์'] = '99999'; };
 
 // One broken row each; the sheet's "ไฟล์มีข้อมูลไม่ถูกต้อง" list for both users (country per user below; email is not checked)
 const INVALID_ROWS = {
@@ -147,6 +146,9 @@ async function expectOrderDetail(page, d, user, order) {
 
 // Case IDs: "User Portal_main" SCENARIO 5 (TS05, user ปกติ) / "User Portal_TSD" SCENARIO 3 (TS03, user TSD)
 test.describe('เตรียมการฝากส่งด้วยไฟล์ CSV', () => {
+  // Most tests go through both users, each uploading its own file
+  test.describe.configure({ timeout: 2 * 60 * 1000 });
+
   test.describe('TS05-TC01 user ปกติ / TS03-TC01 user TSD ผู้ใช้งานสามารถเห็นหน้า "เตรียมการฝากส่ง"', () => {
     test('user ปกติ / user TSD: เข้าจากเมนูด้านบน แสดงขั้นตอนและการนำเข้าจากไฟล์ CSV', async ({ browser }) => {
       await forBothUsers(browser, async (user, { page, preloadPage }) => {
@@ -288,17 +290,6 @@ test.describe('เตรียมการฝากส่งด้วยไฟ�
       await expectInvalid(preloadPage, { invalid: 1, valid: 2 });
       await portal.close();
     });
-
-    test('user ปกติ: ข้อมูลไม่ถูกต้อง - บริการธรรมดาส่งไปต่างประเทศ', async ({ browser }) => {
-      const portal = await openPortal(browser, NORMAL_USER.state);
-      const { preloadPage } = portal;
-      await preloadPage.goto();
-      const rows = await validRows(preloadPage, 3);
-      NORMAL_MAIL_ABROAD(rows[2]);
-      await preloadPage.check(preloadCsv(rows));
-      await expectInvalid(preloadPage, { invalid: 1, valid: 2 });
-      await portal.close();
-    });
   });
 
   test.describe('TS03-TC04 user TSD ตรวจสอบไฟล์ CSV ที่มีข้อมูลผิดพลาด (เฉพาะ TSD)', () => {
@@ -325,29 +316,6 @@ test.describe('เตรียมการฝากส่งด้วยไฟ�
       await portal.close();
     });
 
-    test('user TSD: บริการธรรมดาส่งไปต่างประเทศปนกับรายการที่ถูก ตัดรายการที่ผิดออก นำเข้าเฉพาะรายการที่ถูก', async ({ browser }) => {
-      const portal = await openPortal(browser, TSD_USER.state);
-      const { preloadPage } = portal;
-      await preloadPage.goto();
-      const rows = await validRows(preloadPage, 3);
-      NORMAL_MAIL_ABROAD(rows[2]);
-      await preloadPage.check(preloadCsv(rows));
-      await expect(preloadPage.validResult).toBeVisible();
-      await expect(preloadPage.itemCount).toHaveText('2 ชิ้น');
-      await portal.close();
-    });
-
-    test('user TSD: บริการธรรมดาส่งไปต่างประเทศทุกรายการ แสดงพบข้อมูลไม่ถูกต้อง เหมือน user ปกติ', async ({ browser }) => {
-      const portal = await openPortal(browser, TSD_USER.state);
-      const { preloadPage } = portal;
-      await preloadPage.goto();
-      const rows = await validRows(preloadPage, 2);
-      rows.forEach(NORMAL_MAIL_ABROAD);
-      await preloadPage.check(preloadCsv(rows));
-      await expectInvalid(preloadPage, { invalid: 2, valid: 0 });
-      await portal.close();
-    });
-
 
     test('user TSD: ข้อมูลไม่ถูกต้อง - ราคาต่อชิ้นไม่ใช่ตัวเลข', async ({ browser }) => {
       const portal = await openPortal(browser, TSD_USER.state);
@@ -368,6 +336,19 @@ test.describe('เตรียมการฝากส่งด้วยไฟ�
         const rows = await validRows(preloadPage, 2);
         [EXPIRED_PRELOAD, EXPIRED_DROP_OFF].forEach(({ code, trackingNumber }, i) => {
           Object.assign(rows[i], { 'รหัสบริการ': code, 'หมายเลขติดตามพัสดุ': trackingNumber });
+        });
+        await preloadPage.check(preloadCsv(rows));
+        await expect(preloadPage.validResult).toBeVisible();
+        await expect(preloadPage.itemCount).toHaveText('2 ชิ้น');
+      });
+    });
+
+    test('user ปกติ / user TSD: บริการธรรมดา Lite ส่งไปต่างประเทศ ผ่านการตรวจสอบ', async ({ browser }) => {
+      await forBothUsers(browser, async (user, { preloadPage }) => {
+        await preloadPage.goto();
+        const rows = await validRows(preloadPage, 2);
+        ['MAIL-STD', 'MAIL-STD-0'].forEach((code, i) => {
+          Object.assign(rows[i], { 'รหัสบริการ': code, 'ประเทศ': 'JAPAN', 'รหัสไปรษณีย์': '99999' });
         });
         await preloadPage.check(preloadCsv(rows));
         await expect(preloadPage.validResult).toBeVisible();

@@ -88,12 +88,11 @@ function checkLocations({ data, expected }) {
   expect(data.overview.locationPieChart.reduce((sum, r) => sum + r.totalCount, 0)).toBe(expected.received);
 }
 
-/** อัตราการนำจ่ายสำเร็จตามบริการ (ภาพรวม): delivered / failed per day and the rates the page shows */
+/** อัตราการนำจ่ายสำเร็จตามบริการ (ภาพรวม): delivered per day and the rates the page shows (failCount isn't shown) */
 async function checkServiceRates(browser, { state, days, data, expected }) {
   for (const day of days) {
     const rows = data.overview.trendChart.filter((r) => bangkokDay(r.timestamp) === day);
     expectWithin(rows.reduce((sum, r) => sum + r.successCount, 0), expected.perDay[day].success, `${day} ส่งสำเร็จ`);
-    expectWithin(rows.reduce((sum, r) => sum + r.failCount, 0), expected.perDay[day].fail, `${day} ส่งไม่สำเร็จ`);
   }
   const portal = await openPortal(browser, state);
   await portal.dashboardPage.goto();
@@ -134,6 +133,29 @@ async function checkDeliveryRate(browser, { state, data, expected }) {
   await portal.close();
 }
 
+/**
+ * 10 อันดับสาเหตุในการจัดส่งไม่สำเร็จ, counted in items failed now; on อัตราการนำจ่าย, or on ภาพรวม for TSD (`tab` null).
+ * Back Office has no failure reasons (only Thai Post's updates do), so the reasons are checked page against API
+ */
+async function checkFailedReasons(browser, { state, data, expected }, tab) {
+  const { meta, data: ranking } = data.summary.rankings.delivery;
+  expectWithin(meta.overAllGroupCount, expected.fail, 'ส่งไม่สำเร็จ');
+  const counts = ranking.map((r) => r.groupCount);
+  expect(counts.length).toBeLessThanOrEqual(10);
+  expect(counts).toEqual([...counts].sort((a, b) => b - a));
+  if (counts.length < 10) expect(counts.reduce((a, b) => a + b, 0)).toBe(meta.overAllGroupCount);
+  test.skip(!ranking.length, 'no item failed in the range');
+
+  const portal = await openPortal(browser, state);
+  await portal.dashboardPage.goto();
+  if (tab) await portal.dashboardPage.openTab(tab);
+  const text = await portal.dashboardPage.boxText('10 อันดับสาเหตุในการจัดส่งไม่สำเร็จ');
+  ranking.forEach((r, i) => {
+    expect(text).toContain(`${i + 1}. ${r.groupDetail} ${percent(r.groupCount, meta.overAllGroupCount).toFixed(1)}%`);
+  });
+  await portal.close();
+}
+
 /** 10 อันดับสาเหตุในการรับฝากไม่ครบ, counted in orders; on อัตราการนำจ่าย, or on ภาพรวม for TSD (`tab` null) */
 async function checkMissingReasons(browser, { state, data, expected }, tab) {
   const { meta, data: ranking } = data.summary.rankings.missingItem;
@@ -166,13 +188,16 @@ test.describe('รายงานข้อมูล user ปกติ', () => {
     test('user ปกติ: จำนวนชิ้นรับฝากตามพื้นที่', () => checkLocations(dashboard));
   });
   test.describe('TS12-TC04 user ปกติ ตรวจสอบการแสดงผลอัตราการนำจ่ายสำเร็จตามบริการ', () => {
-    test('user ปกติ: ส่งสำเร็จ / ไม่สำเร็จรายวัน และอัตราที่หน้าแสดง', ({ browser }) => checkServiceRates(browser, dashboard));
+    test('user ปกติ: ส่งสำเร็จรายวัน และอัตราที่หน้าแสดง', ({ browser }) => checkServiceRates(browser, dashboard));
   });
   test.describe('TS13-TC04 user ปกติ ตรวจสอบการแสดงผลจำนวนชิ้นงาน', () => {
     test('user ปกติ: จำนวนชิ้นงานทั้งหมด และรายวัน', ({ browser }) => checkItemTotals(browser, dashboard));
   });
   test.describe('TS14-TC03 user ปกติ ตรวจสอบการแสดงผลอัตราการนำจ่าย', () => {
     test('user ปกติ: อัตราการนำจ่ายสำเร็จ', ({ browser }) => checkDeliveryRate(browser, dashboard));
+  });
+  test.describe('TS14-TC04 user ปกติ ตรวจสอบการแสดงผล 10 อันดับสาเหตุในการจัดส่งไม่สำเร็จ', () => {
+    test('user ปกติ: สาเหตุจัดส่งไม่สำเร็จ นับตามพัสดุที่ส่งไม่สำเร็จ', ({ browser }) => checkFailedReasons(browser, dashboard, 'อัตราการนำจ่าย'));
   });
   test.describe('TS14-TC05 user ปกติ ตรวจสอบการแสดงผล 10 อันดับสาเหตุในการรับฝากไม่ครบ', () => {
     test('user ปกติ: สาเหตุรับฝากไม่ครบ นับตามใบนำส่ง', ({ browser }) => checkMissingReasons(browser, dashboard, 'อัตราการนำจ่าย'));
@@ -193,10 +218,13 @@ test.describe('รายงานข้อมูล user TSD', () => {
     test('user TSD: จำนวนชิ้นรับฝากตามพื้นที่', () => checkLocations(dashboard));
   });
   test.describe('TS10-TC04 user TSD ตรวจสอบการแสดงผลอัตราการนำจ่ายสำเร็จตามบริการ', () => {
-    test('user TSD: ส่งสำเร็จ / ไม่สำเร็จรายวัน และอัตราที่หน้าแสดง', ({ browser }) => checkServiceRates(browser, dashboard));
+    test('user TSD: ส่งสำเร็จรายวัน และอัตราที่หน้าแสดง', ({ browser }) => checkServiceRates(browser, dashboard));
   });
   test.describe('TS11-TC04 user TSD ตรวจสอบการแสดงผลจำนวนชิ้นงาน', () => {
     test('user TSD: จำนวนชิ้นงานทั้งหมด และรายวัน', ({ browser }) => checkItemTotals(browser, dashboard));
+  });
+  test.describe('TS10-TC08 user TSD ตรวจสอบการแสดงผล 10 อันดับสาเหตุในการจัดส่งไม่สำเร็จ', () => {
+    test('user TSD: สาเหตุจัดส่งไม่สำเร็จ นับตามพัสดุที่ส่งไม่สำเร็จ', ({ browser }) => checkFailedReasons(browser, dashboard, null));
   });
   test.describe('TS10-TC09 user TSD ตรวจสอบการแสดงผล 10 อันดับสาเหตุในการรับฝากไม่ครบ', () => {
     test('user TSD: สาเหตุรับฝากไม่ครบ นับตามใบนำส่ง', ({ browser }) => checkMissingReasons(browser, dashboard, null));
@@ -212,13 +240,14 @@ test.describe('รายงานข้อมูล user DLT', () => {
   test.describe('TS11-TC01 user DLT ตรวจสอบการแสดงผล แท็บรายงานภาพรวม', () => {
     test('user DLT: จำนวนชิ้นรับฝากรายวัน แยกตามบริการ', () => checkDailyCounts(dashboard));
     test('user DLT: จำนวนชิ้นรับฝากตามพื้นที่', () => checkLocations(dashboard));
-    test('user DLT: ส่งสำเร็จ / ไม่สำเร็จรายวัน และอัตราที่หน้าแสดง', ({ browser }) => checkServiceRates(browser, dashboard));
+    test('user DLT: ส่งสำเร็จรายวัน และอัตราที่หน้าแสดง', ({ browser }) => checkServiceRates(browser, dashboard));
   });
   test.describe('TS11-TC02 user DLT ตรวจสอบการแสดง แท็บผลจำนวนชิ้นงาน', () => {
     test('user DLT: จำนวนชิ้นงานทั้งหมด และรายวัน', ({ browser }) => checkItemTotals(browser, dashboard));
   });
   test.describe('TS11-TC03 user DLT ตรวจสอบการแสดง อัตรานำจ่าย', () => {
     test('user DLT: อัตราการนำจ่ายสำเร็จ', ({ browser }) => checkDeliveryRate(browser, dashboard));
+    test('user DLT: สาเหตุจัดส่งไม่สำเร็จ นับตามพัสดุที่ส่งไม่สำเร็จ', ({ browser }) => checkFailedReasons(browser, dashboard, 'อัตราการนำจ่าย'));
     test('user DLT: สาเหตุรับฝากไม่ครบ นับตามใบนำส่ง', ({ browser }) => checkMissingReasons(browser, dashboard, 'อัตราการนำจ่าย'));
   });
 });
@@ -362,12 +391,13 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
   });
 
   test.describe('TS14-TC02 user ปกติ ตรวจสอบการกรอง', () => {
-    /** อัตราการนำจ่ายสำเร็จ as the page shows it, waited on until it is `rate` */
-    async function expectRate(dashboardPage, rate) {
+    /** อัตราการนำจ่ายสำเร็จ as the page shows it (2 decimals), waited on until it is within `min`-`max` */
+    async function expectRate(dashboardPage, { min, max }) {
       await expect.poll(async () => {
         const text = await dashboardPage.boxText('อัตราการนำจ่ายสำเร็จ');
-        return Number(text.match(/อัตราการนำจ่ายสำเร็จ ([\d.]+) %/)[1]);
-      }).toBeCloseTo(rate, 1);
+        const rate = Number(text.match(/อัตราการนำจ่ายสำเร็จ ([\d.]+) %/)[1]);
+        return rate >= Number(min.toFixed(2)) && rate <= Number(max.toFixed(2));
+      }, { message: `อัตราการนำจ่ายสำเร็จ should be ${min.toFixed(2)}-${max.toFixed(2)} %` }).toBe(true);
     }
 
     test('user ปกติ: อัตราการนำจ่าย กรองประเภทบริการ และพื้นที่บริการ', async ({ browser }) => {
@@ -382,7 +412,7 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
         countWhere(orders, (i) => i.type !== 'NORMAL'), 'EMS + ลงทะเบียน');
       // Back to every type: the page shows its cached numbers without asking again
       await d.clear('ประเภทบริการ');
-      await expectRate(d, percent(success.min, all));
+      await expectRate(d, { min: percent(success.min, all), max: percent(success.max, all) });
 
       for (const location of LOCATIONS) {
         const count = await d.countAfter(() => d.select('พื้นที่บริการ', [LOCATION_LABELS[location]]));
@@ -412,7 +442,7 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
       const keyword = first.reference.slice(1, -1);
       expect(await d.countAfter(() => d.search(keyword), { search: keyword })).toBe(orders.filter((o) => o.reference.includes(keyword)).reduce((sum, o) => sum + o.received, 0));
       expect(await d.countAfter(() => d.search('NO_SUCH_REFERENCE'), { search: 'NO_SUCH_REFERENCE' })).toBe(0);
-      await expectRate(d, 0);
+      await expectRate(d, { min: 0, max: 0 });
       await close();
 
       // Another range (the day the first order was received): the options follow it

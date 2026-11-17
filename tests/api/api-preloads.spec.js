@@ -17,7 +17,6 @@ const OPTIONAL_FIELDS = ['releaseDate', 'orderItemCount', 'notifyEmail'];
 // TSD-06; a normal company's whole file would fail)...
 const DROPPED_ROWS = {
   'ประเทศไม่มีในระบบ': (row) => Object.assign(row, { 'รหัสบริการ': 'MAIL-R', 'ประเทศ': 'NOWHERELAND', 'รหัสไปรษณีย์': '99999' }),
-  'ไปรษณีย์ธรรมดาส่งต่างประเทศ': (row) => Object.assign(row, { 'รหัสบริการ': 'MAIL-STD', 'ประเทศ': 'JAPAN', 'รหัสไปรษณีย์': '99999' }),
 };
 // ...the rest fail the whole file (a wrong email is not checked)
 const FAILING_ROWS = {

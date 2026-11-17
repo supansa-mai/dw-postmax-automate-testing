@@ -56,7 +56,7 @@ class BackOfficeApi {
     const [domestic, zones, eAr, service, rural] = await Promise.all([
       Promise.all(['NORMAL', 'REGISTERED', 'EMS'].map((type) => this.get(`order-type-prices/date?dropOffAt=${at}&type=${type}`)
         .then((data) => [type, data.orderTypePrices]))),
-      Promise.all(['REGISTERED', 'EMS'].map((type) => this.get(`country-zones/date?dropOffAt=${at}&type=${type}&page=1&perPage=1000&orderBy=country&orderDirection=asc`)
+      Promise.all(['NORMAL', 'REGISTERED', 'EMS'].map((type) => this.get(`country-zones/date?dropOffAt=${at}&type=${type}&page=1&perPage=1000&orderBy=country&orderDirection=asc`)
         .then((data) => [type, data.countryZones]))),
       this.get(`e-ar-prices/date?dropOffAt=${at}`),
       this.get(`service-prices/date?dropOffAt=${at}`),
@@ -69,7 +69,7 @@ class BackOfficeApi {
       eAr: Object.fromEntries(eAr.eArPrices.map((p) => [p.eArService, Number(p.basePrice)])),
       service: Object.fromEntries(service.servicePrices.map((p) => [p.service, Number(p.basePrice)])),
       rural,
-      /** Weight bands of a registered / EMS zone abroad */
+      /** Weight bands of a zone abroad */
       international: (type, zone) => (international[`${type}${zone}`] ??= this.get(`international-order-type-prices/date?dropOffAt=${at}&type=${type}&zone=${zone}`)
         .then((data) => data.internationalOrderTypePrices)),
     };

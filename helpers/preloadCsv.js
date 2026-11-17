@@ -56,16 +56,18 @@ const PRODUCTS = ['เสื้อผ้า', 'เอกสาร', 'ใบแ�
 const ENVELOPES = ['', 'seal', 'ซอง', '1', '2'];
 const pick = (values) => values[randomInt(0, values.length)];
 
-// Registered mail and EMS can go abroad (the zones exist only for those two); ordinary mail stays in Thailand
-const canGoAbroad = (serviceCode) => /^(MAIL-R|MAIL-EAR|EMS)/.test(serviceCode);
+// Ordinary Plus abroad passes the check but the order is not created (trackingNumberRangeFull), so it stays in Thailand
+const canGoAbroad = (serviceCode) => !serviceCode.startsWith('MAIL-STD-PLS');
+// So every order prices ordinary mail abroad, which has its own zones and weight bands
+const ALWAYS_ABROAD = 'MAIL-STD';
 
 /**
- * One row per service code; about a third of those that can go abroad get a random country (postal code 99999), and
- * with `ruralAreas` (Back Office rural areas) the RURAL_CODES ones go to a rural area. TSD's รูปแบบซอง is random
- * (ENVELOPES) and one random row has a ราคาต่อชิ้น, which the price must ignore; other columns come from the template's
- * rows in turn; ID is the running number like the template's
+ * One row per service code; ALWAYS_ABROAD and about a third of the others that can go abroad get a random country
+ * (postal code 99999), except the `inThailand` codes, and with `ruralAreas` (Back Office rural areas) the RURAL_CODES
+ * ones go to a rural area. TSD's รูปแบบซอง is random (ENVELOPES) and one random row has a ราคาต่อชิ้น, which the price
+ * must ignore; other columns come from the template's rows in turn; ID is the running number like the template's
  */
-function preloadRows(template, ref1, { ruralAreas } = {}) {
+function preloadRows(template, ref1, { ruralAreas, inThailand = () => false } = {}) {
   const rural = ruralAreas && ruralPicks(ruralAreas);
   const pricedRow = randomInt(0, Object.keys(SERVICE_CODES).length);
   return Object.keys(SERVICE_CODES).map((serviceCode, i) => {
@@ -80,7 +82,8 @@ function preloadRows(template, ref1, { ruralAreas } = {}) {
     } else if (ruralAreas && RURAL_CODES.includes(serviceCode)) {
       postalCode = rural.wholeCode();
     }
-    const abroad = !ruralCase && canGoAbroad(serviceCode) && randomInt(0, 3) === 0;
+    const abroad = !ruralCase && !inThailand(serviceCode) && canGoAbroad(serviceCode)
+      && (serviceCode === ALWAYS_ABROAD || randomInt(0, 3) === 0);
     const insured = randomInt(0, 2) === 0;
     const row = template[i % template.length];
     return {
@@ -134,14 +137,14 @@ const CSV_USERS = [
  * Creates an order as `user` with one item per service code (preloadRows), and waits until it is created;
  * returns { id, number, reference, exportDate (TSD), items }, each item the CSV row's pricing fields (pricedItem) plus its
  * tracking number, the uploaded row and the row of the order's CSV export (with the type and service labels).
- * `only` keeps some of the rows
+ * `only` keeps some of the rows; `inThailand` as for preloadRows
  */
-async function createCsvOrder(browser, user, { ruralAreas, only = () => true } = {}) {
+async function createCsvOrder(browser, user, { ruralAreas, inThailand, only = () => true } = {}) {
   const reference = uniqueBatchRef();
   const portal = await openPortal(browser, user.state);
   await portal.preloadPage.goto();
   const template = parseCsv(await readDownload(await portal.preloadPage.downloadTemplate()));
-  const rows = preloadRows(template, reference, { ruralAreas }).filter(only);
+  const rows = preloadRows(template, reference, { ruralAreas, inThailand }).filter(only);
   await portal.preloadPage.upload(preloadCsv(rows));
   const { number, exportDate } = await portal.preloadPage.createOrder({
     reference, tsd: user.tsd, documentType: 'AUTO เอกสาร', orderName: ORDER_NAME,

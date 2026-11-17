@@ -15,8 +15,6 @@ const ITEM_STATUS = { received: 'รับฝาก', inTransit: 'ออกจ�
 
 /** Items with a delivery status of their own (not Lite), sent within Thailand */
 const trackedInThailand = (order) => order.items.filter((item) => item.trackingNumber && !item.country && !item.service.startsWith('LITE'));
-// dev hands out the same few EMS-abroad tracking numbers (EE...) to many orders and updates the wrong one (CPM-1841)
-const notEmsAbroad = (row) => !(row['รหัสบริการ'].startsWith('EMS') && row['ประเทศ']);
 const HOUR = 60 * 60 * 1000;
 
 /**
@@ -24,7 +22,9 @@ const HOUR = 60 * 60 * 1000;
  * without e-AR, `failed` with e-AR
  */
 async function receivedOrder(browser, backOffice, user) {
-  const order = await createCsvOrder(browser, user, { only: notEmsAbroad });
+  // EMS and e-AR rows stay in Thailand: always an e-AR item to fail, and all 12 tracked items in the order, so 90% are
+  // delivered with the failed one left as it is
+  const order = await createCsvOrder(browser, user, { inThailand: (code) => code.startsWith('EMS') || code.includes('EAR') });
   const context = await browser.newContext({ storageState: DROPOFF_STATE, baseURL: `${env.baseURL}/` });
   const page = await context.newPage();
   const dropOffOrders = new DropOffOrdersPage(page);
@@ -118,12 +118,12 @@ async function expectDeliveryRates(portal, order, deliveredItems) {
 /**
  * ระยะเวลาที่ส่งสำเร็จ 90%: once 90% of the tracked items are delivered, the latest status_date of any item's update
  * minus the order's dropOffAt, in hours rounded to the nearest (dev's answer, Nov 2026). Delivers every item not
- * delivered yet (a failed one takes updates still, a delivered one no more), the last `hours` after drop off (in the
- * future is fine)
+ * delivered yet but the failed one, which stays failed for the dashboard (รายงานข้อมูล), the last `hours` after drop off
+ * (in the future is fine)
  */
 async function expectNinetyPercentTime(portal, backOffice, order, hours) {
   const { dropOffAt } = await backOffice.order(order.id);
-  const left = order.tracked.filter((item) => item !== order.delivered);
+  const left = order.tracked.filter((item) => item !== order.delivered && item !== order.failed);
   for (const [i, item] of left.entries()) {
     const at = new Date(new Date(dropOffAt).getTime() + (i === left.length - 1 ? hours * HOUR : (i + 1) * 0.5 * HOUR));
     await backOffice.updateItemStatus(item.trackingNumber, 'delivered', { at, orderId: order.id });

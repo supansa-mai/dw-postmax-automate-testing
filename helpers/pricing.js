@@ -18,11 +18,10 @@ async function itemPrice(fees, item) {
   let zone = 0;
   let thaiPost;
   if (item.country) {
-    const zoneType = item.type === 'EMS' ? 'EMS' : 'REGISTERED';
-    const country = fees.zones[zoneType].find((c) => c.country === item.country || c.variants?.includes(item.country));
-    if (!country) throw new Error(`No ${zoneType} zone for ${item.country}`);
+    const country = fees.zones[item.type].find((c) => c.country === item.country || c.variants?.includes(item.country));
+    if (!country) throw new Error(`No ${item.type} zone for ${item.country}`);
     zone = country.zone;
-    thaiPost = band(await fees.international(zoneType, zone), weight);
+    thaiPost = band(await fees.international(item.type, zone), weight);
   } else {
     thaiPost = band(fees.domestic[item.type], weight);
   }
