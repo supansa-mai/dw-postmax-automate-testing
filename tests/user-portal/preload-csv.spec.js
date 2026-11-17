@@ -6,6 +6,7 @@ const { expectedSummary, bySummaryKey, baht } = require('../../helpers/pricing')
 const { uniqueBatchRef } = require('../../helpers/futureItemsApi');
 const { readDownload, parseCsv, countBy } = require('../../helpers/orderData');
 const { thaiDate } = require('../../helpers/thaiDate');
+const { scaled } = require('../../config/environments');
 
 const EXPORT_COLUMNS = ['ID', 'ประเภทการขนส่ง', 'บริการ', 'บริการ e-AR', 'สินค้า', 'ชื่อผู้รับ', 'ที่อยู่', 'ประเทศ', 'รหัสไปรษณีย์',
   'เบอร์ติดต่อ', 'อีเมล', 'หมายเลขติดตามพัสดุ', 'น้ำหนักต่อชิ้น (กรัม)', 'ประกันภัย', 'มูลค่าประกัน', 'หมายเลขอ้างอิง 1', 'หมายเลขอ้างอิง 2'];
@@ -122,8 +123,8 @@ async function confirmOrder(page, preloadPage, itemCount) {
 
   await preloadPage.primaryButton.click();
   await preloadPage.confirmDialog.getByRole('button', { name: 'ยืนยัน' }).click();
-  await expect(preloadPage.toast).toContainText('สร้างรายการฝากส่งสำเร็จ', { timeout: 30000 });
-  await expect(preloadPage.orderTitle).toBeVisible({ timeout: 30000 });
+  await expect(preloadPage.toast).toContainText('สร้างรายการฝากส่งสำเร็จ', { timeout: scaled(30000) });
+  await expect(preloadPage.orderTitle).toBeVisible({ timeout: scaled(30000) });
   const number = (await preloadPage.orderTitle.innerText()).replace('หมายเลขใบนำส่ง : ', '');
   return { id: page.url().match(/orders\/(\d+)/)[1], number };
 }
@@ -132,8 +133,8 @@ async function confirmOrder(page, preloadPage, itemCount) {
 async function expectOrderDetail(page, d, user, order) {
   await expect(async () => {
     await page.goto(`orders/${order.id}`);
-    await expect(d.field('สถานะการฝากส่ง')).toHaveText(user.createdStatus, { timeout: 2000 });
-  }).toPass({ timeout: 60000 });
+    await expect(d.field('สถานะการฝากส่ง')).toHaveText(user.createdStatus, { timeout: scaled(2000) });
+  }).toPass({ timeout: scaled(60000) });
   await expect(d.title).toHaveText(`หมายเลขใบนำส่ง : ${order.number}`);
   await expect(d.field('วันที่/เวลาที่ปณ.ได้รับ')).toHaveText('-');
   for (const [label, value] of Object.entries(order.sender)) await expect(d.field(label)).toHaveText(value);
@@ -147,7 +148,7 @@ async function expectOrderDetail(page, d, user, order) {
 // Case IDs: "User Portal_main" SCENARIO 5 (TS05, user ปกติ) / "User Portal_TSD" SCENARIO 3 (TS03, user TSD)
 test.describe('เตรียมการฝากส่งด้วยไฟล์ CSV', () => {
   // Most tests go through both users, each uploading its own file
-  test.describe.configure({ timeout: 2 * 60 * 1000 });
+  test.describe.configure({ timeout: scaled(2 * 60 * 1000) });
 
   test.describe('TS05-TC01 user ปกติ / TS03-TC01 user TSD ผู้ใช้งานสามารถเห็นหน้า "เตรียมการฝากส่ง"', () => {
     test('user ปกติ / user TSD: เข้าจากเมนูด้านบน แสดงขั้นตอนและการนำเข้าจากไฟล์ CSV', async ({ browser }) => {
@@ -191,7 +192,7 @@ test.describe('เตรียมการฝากส่งด้วยไฟ�
         await preloadPage.fileInput.setInputFiles({ name: 'preload.csv', mimeType: 'text/csv', buffer: preloadCsv(rows) });
         await expect(preloadPage.loading).toBeVisible();
         release();
-        await expect(preloadPage.validResult).toBeVisible({ timeout: 30000 });
+        await expect(preloadPage.validResult).toBeVisible({ timeout: scaled(30000) });
         await expect(preloadPage.loading).toBeHidden();
       });
     });
@@ -273,7 +274,7 @@ test.describe('เตรียมการฝากส่งด้วยไฟ�
         await expectInvalid(preloadPage, { invalid: 1, valid: 1 });
         const [chooser] = await Promise.all([page.waitForEvent('filechooser'), preloadPage.primaryButton.click()]);
         await chooser.setFiles({ name: 'fixed.csv', mimeType: 'text/csv', buffer: preloadCsv(rows) });
-        await expect(preloadPage.validResult).toBeVisible({ timeout: 30000 });
+        await expect(preloadPage.validResult).toBeVisible({ timeout: scaled(30000) });
         await expect(preloadPage.itemCount).toHaveText('2 ชิ้น');
       });
     });
@@ -510,9 +511,9 @@ test.describe('เตรียมการฝากส่งด้วยไฟ�
           // The PDFs are made after the order is created
           await expect(async () => {
             await page.goto(`orders/${order.id}`);
-            await expect(d.deliveryNoteButton).toBeEnabled({ timeout: 2000 });
-            await expect(d.labelButton).toBeEnabled({ timeout: 2000 });
-          }).toPass({ timeout: 120000 });
+            await expect(d.deliveryNoteButton).toBeEnabled({ timeout: scaled(2000) });
+            await expect(d.labelButton).toBeEnabled({ timeout: scaled(2000) });
+          }).toPass({ timeout: scaled(120000) });
 
           const note = await d.download(d.deliveryNoteButton);
           await expect(toast).toHaveText('ดาวน์โหลดสำเร็จ');

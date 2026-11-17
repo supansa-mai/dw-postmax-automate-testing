@@ -1,5 +1,5 @@
 const { test, expect } = require('../../fixtures');
-const { env, ENV_NAME } = require('../../config/environments');
+const { env, ENV_NAME, scaled } = require('../../config/environments');
 const { nowUnix } = require('../../helpers/hmac');
 const { PreloadsApi, csvFile } = require('../../helpers/preloadsApi');
 const { ORDER_NAME, TEMPLATE_COLUMNS, TSD_TEMPLATE_COLUMNS, blankTemplate, preloadRows, preloadCsv, pricedItem } = require('../../helpers/preloadCsv');
@@ -74,7 +74,7 @@ async function waitForOrder(backOffice, number) {
   await expect.poll(async () => {
     order = await backOffice.findOrder(number);
     return order?.status;
-  }, { message: `order ${number} still being created`, timeout: 120000, intervals: [3000] }).toMatch(/^CREATED_(SUCCESS|FAILED)$/);
+  }, { message: `order ${number} still being created`, timeout: scaled(120000), intervals: [3000] }).toMatch(/^CREATED_(SUCCESS|FAILED)$/);
   return order;
 }
 
@@ -94,7 +94,7 @@ async function preloadAndWait(api, backOffice, fields) {
 
 test.describe('Public API preload (/v1/public/preloads/tsd)', () => {
   // Longer than waitForOrder's 2 minutes, so a slow job fails with its own message
-  test.describe.configure({ timeout: 3 * 60 * 1000 });
+  test.describe.configure({ timeout: scaled(3 * 60 * 1000) });
 
   let backOffice;
   let fees;

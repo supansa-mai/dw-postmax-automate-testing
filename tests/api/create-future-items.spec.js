@@ -1,6 +1,6 @@
 const { randomInt } = require('crypto');
 const { test, expect } = require('../../fixtures');
-const { env, ENV_NAME } = require('../../config/environments');
+const { env, ENV_NAME, scaled } = require('../../config/environments');
 const { generateHmacSignature, nowUnix } = require('../../helpers/hmac');
 const { FutureItemsApi, uniqueRefCodes, uniqueBatchRef, buildItem, buildPayload, omit } = require('../../helpers/futureItemsApi');
 const { expectSuccess, expectInvalidSignature, expectInvalidBody } = require('../../helpers/apiAssertions');
@@ -378,7 +378,7 @@ test.describe('Create Future Items API', () => {
     }
 
     test('over the limit → 429, OK again after Retry-After', async ({ futureItemsApi }) => {
-      test.setTimeout(2 * 60 * 1000);
+      test.setTimeout(scaled(2 * 60 * 1000));
       let limited;
 
       await test.step('1. send requests until the limit → each one before the limit is 201', async () => {

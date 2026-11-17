@@ -1,4 +1,5 @@
 const { buildHmacHeaders } = require('./hmac');
+const { scaled } = require('../config/environments');
 
 // One endpoint for every company, each with its own key pair (the old /v1/public/preloads is gone)
 const PATH = '/v1/public/preloads/tsd';
@@ -24,7 +25,7 @@ class PreloadsApi {
    * signed headers entirely. The order is created in the background: the response says CREATED_PENDING
    */
   async create(fields, { headers } = {}) {
-    return this.request.post(this.url, { headers: headers ?? this.signedHeaders(), multipart: fields, timeout: 60000 });
+    return this.request.post(this.url, { headers: headers ?? this.signedHeaders(), multipart: fields, timeout: scaled(60000) });
   }
 }
 

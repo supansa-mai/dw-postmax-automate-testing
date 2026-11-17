@@ -1,5 +1,6 @@
 const { expect } = require('@playwright/test');
 const { BasePage } = require('./BasePage');
+const { scaled } = require('../config/environments');
 
 /** Drop Off รายละเอียดใบนำส่ง — /th/dropoff/orders/:id, also where the order is received (นำส่งเข้าสู่ระบบ) */
 class DropOffOrderDetailPage extends BasePage {
@@ -55,7 +56,7 @@ class DropOffOrderDetailPage extends BasePage {
 
   /** The tables are filled after the page shows up; wait for the รวมทั้งหมด row */
   async waitForOrder() {
-    await expect(this.serviceTable.getByRole('row').last()).toContainText('รวมทั้งหมด', { timeout: 30000 });
+    await expect(this.serviceTable.getByRole('row').last()).toContainText('รวมทั้งหมด', { timeout: scaled(30000) });
   }
 
   /** วิธีการนำส่งเข้าสู่ระบบ "ทั้งหมด" → ยืนยัน, lands on the summary page of all items */
@@ -123,7 +124,7 @@ class DropOffOrderDetailPage extends BasePage {
         return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       });
       expect(await row.count()).toBeGreaterThan(0);
-    }).toPass({ timeout: 10000 });
+    }).toPass({ timeout: scaled(10000) });
     return row;
   }
 
@@ -142,8 +143,8 @@ class DropOffOrderDetailPage extends BasePage {
     await expect(this.weightInput).toHaveValue(weight);
     await expect(async () => {
       await this.editDialog.getByRole('button', { name: 'ยืนยัน' }).click();
-      await expect(this.editDialog).toBeHidden({ timeout: 2000 });
-    }).toPass({ timeout: 10000 });
+      await expect(this.editDialog).toBeHidden({ timeout: scaled(2000) });
+    }).toPass({ timeout: scaled(10000) });
   }
 
   /** 50 rows a page, the most, which fits every order the tests create */

@@ -1,7 +1,7 @@
 // Back Office API as the admin, for the settings the tests check against (fees, zones, rural areas) and order data.
 // The token is only sent by the Back Office app itself, so it is taken from the app's own requests.
 const { expect } = require('@playwright/test');
-const { env } = require('../config/environments');
+const { env, scaled } = require('../config/environments');
 const { ADMIN_STATE } = require('../config/auth');
 
 class BackOfficeApi {
@@ -24,7 +24,7 @@ class BackOfficeApi {
   async refreshToken() {
     this.authorization = undefined;
     await this.page.goto('backoffice/orders');
-    await expect.poll(() => this.authorization, { message: 'Back Office token', timeout: 30000 }).toBeTruthy();
+    await expect.poll(() => this.authorization, { message: 'Back Office token', timeout: scaled(30000) }).toBeTruthy();
   }
 
   /** GET `/v1/backend/<path>`, returns `data`; a 401 (expired token) loads a Back Office page once to get a new one */

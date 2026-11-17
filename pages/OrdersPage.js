@@ -1,5 +1,6 @@
 const { expect } = require('@playwright/test');
 const { BasePage } = require('./BasePage');
+const { scaled } = require('../config/environments');
 
 /** การฝากส่งของฉัน — /th/orders, newest order first */
 class OrdersPage extends BasePage {
@@ -19,12 +20,12 @@ class OrdersPage extends BasePage {
 
   /** The orders API takes ~7s on dev (Nov 2026), longer than the default expect timeout */
   async waitForRows() {
-    await expect(this.rows.first()).toBeVisible({ timeout: 30000 });
+    await expect(this.rows.first()).toBeVisible({ timeout: scaled(30000) });
   }
 
   async search(orderNumber) {
     await this.searchInput.fill(orderNumber);
-    await expect(this.rows).toHaveCount(1, { timeout: 30000 });
+    await expect(this.rows).toHaveCount(1, { timeout: scaled(30000) });
     await expect(this.row(orderNumber)).toBeVisible();
   }
 

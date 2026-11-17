@@ -1,5 +1,6 @@
 const { expect } = require('@playwright/test');
 const { BasePage } = require('./BasePage');
+const { scaled } = require('../config/environments');
 
 /** สร้างใบนำส่ง from future items (DLT) — /th/future-items/create */
 class CreateFutureItemPage extends BasePage {
@@ -34,7 +35,7 @@ class CreateFutureItemPage extends BasePage {
   async goto() {
     await super.goto('future-items/create');
     await expect.poll(() => this.scanInput.evaluate((el) => Object.keys(el).some((key) => key.startsWith('__reactProps'))),
-      { timeout: 15000 }).toBe(true);
+      { timeout: scaled(15000) }).toBe(true);
   }
 
   /** Modal by its title, e.g. "ไม่พบหมายเลขติดตามพัสดุนี้" or "สร้างใบนำส่ง?" */

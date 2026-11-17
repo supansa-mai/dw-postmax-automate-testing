@@ -2,6 +2,7 @@ const { randomInt } = require('crypto');
 const { expect } = require('@playwright/test');
 const { buildHmacHeaders } = require('./hmac');
 const { randomThaiName, randomThaiPhone, randomEmail, randomThaiAddress, randomThaiPostalCode, randomWeight, ruralPicks } = require('./testData');
+const { scaled } = require('../config/environments');
 
 const PATH = '/v1/frontend/future-items';
 const MAX_ATTEMPTS_ON_429 = 10;
@@ -31,7 +32,7 @@ class FutureItemsApi {
       const response = await this.request.post(this.url, {
         headers: { 'Content-Type': 'application/json', ...(headers ?? this.signedHeaders()) },
         data: payload,
-        timeout: 120000,
+        timeout: scaled(120000),
       });
       if (response.status() !== 429 || !retryOn429 || attempt === MAX_ATTEMPTS_ON_429) return response;
       const seconds = Number(response.headers()['retry-after']) || 1;

@@ -1,5 +1,6 @@
 const { expect } = require('@playwright/test');
 const { BasePage } = require('./BasePage');
+const { scaled } = require('../config/environments');
 
 /** เตรียมการฝากส่ง — /th/preload: upload a CSV, check it, confirm; lands on the new order's detail page */
 class PreloadPage extends BasePage {
@@ -51,12 +52,12 @@ class PreloadPage extends BasePage {
   /** Selects the file and waits for the check result (step 2) */
   async check(buffer, { name = 'preload.csv', mimeType = 'text/csv' } = {}) {
     await this.fileInput.setInputFiles({ name, mimeType, buffer });
-    await expect(this.checkResult).toBeVisible({ timeout: 30000 });
+    await expect(this.checkResult).toBeVisible({ timeout: scaled(30000) });
   }
 
   async upload(buffer, name = 'preload.csv') {
     await this.fileInput.setInputFiles({ name, mimeType: 'text/csv', buffer });
-    await expect(this.validResult).toBeVisible({ timeout: 30000 });
+    await expect(this.validResult).toBeVisible({ timeout: scaled(30000) });
   }
 
   /** The message under a required field of the summary step, e.g. "ประเภทเอกสาร" */
@@ -79,8 +80,8 @@ class PreloadPage extends BasePage {
       if (await this.exportDatePicker.isVisible()) await this.page.keyboard.press('Escape');
       await this.exportDateButton.click();
       await day.click();
-      await expect(day).toHaveAttribute('aria-selected', 'true', { timeout: 1000 });
-    }).toPass({ timeout: 20000 });
+      await expect(day).toHaveAttribute('aria-selected', 'true', { timeout: scaled(1000) });
+    }).toPass({ timeout: scaled(20000) });
     await this.exportDatePicker.getByRole('option', { name: `${Number(parts.hour)} hours`, exact: true }).click();
     await this.exportDatePicker.getByRole('option', { name: `${Number(minute)} minutes`, exact: true }).click();
     await expect(this.exportDatePicker).toBeHidden();
@@ -102,7 +103,7 @@ class PreloadPage extends BasePage {
     }
     await this.primaryButton.click();
     await this.confirmDialog.getByRole('button', { name: 'ยืนยัน' }).click();
-    await expect(this.orderTitle).toBeVisible({ timeout: 30000 });
+    await expect(this.orderTitle).toBeVisible({ timeout: scaled(30000) });
     return { number: (await this.orderTitle.innerText()).replace('หมายเลขใบนำส่ง : ', ''), exportDate };
   }
 }

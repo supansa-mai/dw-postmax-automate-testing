@@ -3,6 +3,7 @@ const { NORMAL_STATE, TSD_STATE, DROPOFF_STATE, ADMIN_STATE } = require('../conf
 const { DateRangeField } = require('../pages/DateRangeField');
 const { DashboardPage } = require('../pages/DashboardPage');
 const { thaiDate, daysFromNow } = require('../helpers/thaiDate');
+const { scaled } = require('../config/environments');
 
 const day = (n) => thaiDate(daysFromNow(n));
 
@@ -13,7 +14,7 @@ const day = (n) => thaiDate(daysFromNow(n));
 async function expectNewStartClearsEnd(page, url, startLabel, endLabel) {
   await page.goto(url);
   const range = new DateRangeField(page, startLabel, endLabel);
-  await expect(range.start).toBeVisible({ timeout: 30000 });
+  await expect(range.start).toBeVisible({ timeout: scaled(30000) });
 
   await range.set(day(-3), day(0));
   await range.type(range.start, day(-2));
@@ -36,7 +37,7 @@ async function expectNewStartClearsEnd(page, url, startLabel, endLabel) {
 async function expectCustomRangeClearsEnd(page, url) {
   await page.goto(url);
   const d = new DashboardPage(page);
-  await expect(d.dateFilter).toBeVisible({ timeout: 30000 });
+  await expect(d.dateFilter).toBeVisible({ timeout: scaled(30000) });
   await d.pickDateOption('กำหนดเอง');
   const modal = d.customRangeModal();
   const range = new DateRangeField(page, modal.getByRole('textbox').first(), modal.getByRole('textbox').last());

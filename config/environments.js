@@ -10,6 +10,7 @@ const environments = {
     baseURL: 'https://dev.thaipostmax.datawow.io/th',
     apiURL: 'https://api-dev.thaipostmax.datawow.io',
     timeout: 30000,
+    timeoutScale: 1,
     // company_dlt_mappings (CPM-1820): the company code written in the EOD file header and how many digits of
     // reference 1 (from the 1st) are the refCode; dlt = the company of DLT_USER_EMAIL / DLT_HUID, dltB = DLT_B_*
     eodCompanies: {
@@ -21,6 +22,8 @@ const environments = {
     baseURL: 'https://uat.thaipostmax.datawow.io/th',
     apiURL: 'https://api-uat.thaipostmax.datawow.io',
     timeout: 30000,
+    // UAT pages and order creation are slower than dev's: every wait and test timeout is multiplied by this
+    timeoutScale: 2,
     eodCompanies: {
       dlt: { companyCode: '27744', refDigits: 10 },
       dltB: { companyCode: '27743', refDigits: 9 },
@@ -30,6 +33,7 @@ const environments = {
     baseURL: 'http://localhost:3000',
     apiURL: 'http://localhost:8080',
     timeout: 15000,
+    timeoutScale: 1,
   },
 };
 
@@ -107,4 +111,7 @@ const env = {
   otherEnvDlt: otherEnvName && { envName: otherEnvName, ...dltCredentialsOf(otherEnvName) },
 };
 
-module.exports = { env, ENV_NAME };
+/** A wait or test timeout in ms, scaled for the env (timeoutScale); use it for every hard-coded timeout */
+const scaled = (ms) => ms * (environments[ENV_NAME].timeoutScale ?? 1);
+
+module.exports = { env, ENV_NAME, scaled };

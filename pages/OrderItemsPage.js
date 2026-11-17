@@ -1,5 +1,6 @@
 const { expect } = require('@playwright/test');
 const { BasePage } = require('./BasePage');
+const { scaled } = require('../config/environments');
 
 /** รายละเอียดการจัดส่งรายพัสดุ — /th/orders/:id/items, after the order is received at drop off */
 class OrderItemsPage extends BasePage {
@@ -17,7 +18,7 @@ class OrderItemsPage extends BasePage {
 
   async search(text) {
     await this.page.getByRole('textbox', { name: 'ค้นหาหมายเลขติดตามพัสดุหรือชื่อผู้รับ' }).fill(text);
-    await expect(this.rows).toHaveCount(1, { timeout: 30000 });
+    await expect(this.rows).toHaveCount(1, { timeout: scaled(30000) });
   }
 
   /** เลือกสถานะ lists Thai Post's status descriptions, e.g. "นำจ่ายสำเร็จ" */
@@ -44,7 +45,7 @@ class OrderItemsPage extends BasePage {
    * ref1, ...) of every item. The grid only renders the columns in view, so it is read while scrolling right.
    */
   async rowValues() {
-    await expect(this.rows.first()).toBeVisible({ timeout: 30000 });
+    await expect(this.rows.first()).toBeVisible({ timeout: scaled(30000) });
     await this.showAllRows();
     const rows = {};
     const { width, height, view } = await this.scroller.evaluate((el) => ({ width: el.scrollWidth, height: el.scrollHeight, view: el.clientHeight }));

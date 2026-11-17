@@ -1,5 +1,5 @@
 const { test, expect } = require('../../fixtures');
-const { env, ENV_NAME } = require('../../config/environments');
+const { env, ENV_NAME, scaled } = require('../../config/environments');
 const { DROPOFF_STATE } = require('../../config/auth');
 const { openPortal } = require('../../helpers/portal');
 const { CSV_USERS, createCsvOrder } = require('../../helpers/preloadCsv');
@@ -37,7 +37,7 @@ async function receivedOrder(browser, backOffice, user) {
   await context.close();
   // Received is saved a moment later and would overwrite an update sent before it
   await expect.poll(async () => (await backOffice.orderItems(order.id)).every((item) => item.status === RECEIVED),
-    { message: `items of ${order.number} received`, timeout: 60000, intervals: [2000] }).toBe(true);
+    { message: `items of ${order.number} received`, timeout: scaled(60000), intervals: [2000] }).toBe(true);
 
   const items = trackedInThailand(order);
   const withoutEAr = items.filter((item) => item.eAr === 'NON');
@@ -55,11 +55,11 @@ async function expectOrderStatus(portal, order, status, { received, inTransit = 
   const d = portal.orderDetailPage;
   await expect(async () => {
     await portal.page.goto(`orders/${order.id}`);
-    await expect(d.field('สถานะการฝากส่ง')).toHaveText(status, { timeout: 5000 });
+    await expect(d.field('สถานะการฝากส่ง')).toHaveText(status, { timeout: scaled(5000) });
     expect(await d.tableRows(d.deliveryTable)).toEqual([
       ['รับฝากสำเร็จ', String(received)], ['กำลังจัดส่ง', String(inTransit)], ['ส่งสำเร็จ', String(delivered)], ['ส่งไม่สำเร็จ', String(failed)],
     ]);
-  }).toPass({ timeout: 60000 });
+  }).toPass({ timeout: scaled(60000) });
 }
 
 /** The items page: the updated items show Thai Post's status, the rest are still รับฝาก */
@@ -86,7 +86,7 @@ async function expectDocumentsDisabled(portal, order) {
 async function expectStatusFilter(portal, order) {
   const p = portal.orderItemsPage;
   await portal.page.goto(`orders/${order.id}/items`);
-  await expect(p.rows.first()).toBeVisible({ timeout: 30000 });
+  await expect(p.rows.first()).toBeVisible({ timeout: scaled(30000) });
   await p.filterStatus(ITEM_STATUS.delivered);
   await expect(p.rows).toHaveCount(1);
   await expect(p.rows).toContainText(order.delivered.trackingNumber);
@@ -107,7 +107,7 @@ async function expectDeliveryRates(portal, order, deliveredItems) {
   const meanRate = byPostalCode.reduce((sum, { done, all }) => sum + done / all, 0) / byPostalCode.length;
   const r = portal.orderReportPage;
   await portal.page.goto(`orders/${order.id}/report`);
-  await expect(r.deliveryTable).toBeVisible({ timeout: 30000 });
+  await expect(r.deliveryTable).toBeVisible({ timeout: scaled(30000) });
   // Not 90% delivered yet
   await expect(r.field('ระยะเวลาที่ส่งสำเร็จ 90%')).toHaveText('-');
   const [total, ...rows] = await r.tableRows(r.deliveryTable);
@@ -131,13 +131,13 @@ async function expectNinetyPercentTime(portal, backOffice, order, hours) {
   const r = portal.orderReportPage;
   await expect(async () => {
     await portal.page.goto(`orders/${order.id}/report`);
-    await expect(r.field('ระยะเวลาที่ส่งสำเร็จ 90%')).toHaveText(`${Math.round(hours)} ชั่วโมง`, { timeout: 5000 });
-  }).toPass({ timeout: 60000 });
+    await expect(r.field('ระยะเวลาที่ส่งสำเร็จ 90%')).toHaveText(`${Math.round(hours)} ชั่วโมง`, { timeout: scaled(5000) });
+  }).toPass({ timeout: scaled(60000) });
 }
 
 test.describe('อัปเดตสถานะจัดส่ง (mock สถานะจากไปรษณีย์)', () => {
   test.skip(ENV_NAME !== 'dev', 'the Thai Post status mock (PATCH order-items/:tracking/status) is only known to be on dev');
-  test.describe.configure({ timeout: 4 * 60 * 1000 });
+  test.describe.configure({ timeout: scaled(4 * 60 * 1000) });
 
   let backOffice;
 
@@ -156,7 +156,7 @@ test.describe('อัปเดตสถานะจัดส่ง (mock สถ�
     let portal;
 
     test.beforeAll(async ({ browser }, testInfo) => {
-      testInfo.setTimeout(4 * 60 * 1000);
+      testInfo.setTimeout(scaled(4 * 60 * 1000));
       order = await receivedOrder(browser, backOffice, NORMAL_USER);
       portal = await openPortal(browser, NORMAL_USER.state);
     });
@@ -221,7 +221,7 @@ test.describe('อัปเดตสถานะจัดส่ง (mock สถ�
     let portal;
 
     test.beforeAll(async ({ browser }, testInfo) => {
-      testInfo.setTimeout(4 * 60 * 1000);
+      testInfo.setTimeout(scaled(4 * 60 * 1000));
       order = await receivedOrder(browser, backOffice, TSD_USER);
       portal = await openPortal(browser, TSD_USER.state);
     });

@@ -5,6 +5,7 @@ const { CSV_USERS, createCsvOrder, serviceLabel, TYPE_LABELS } = require('../../
 const { readDownload, parseCsv, countBy } = require('../../helpers/orderData');
 const { BackOfficeApi } = require('../../helpers/backOfficeApi');
 const { thaiDate } = require('../../helpers/thaiDate');
+const { scaled } = require('../../config/environments');
 
 const WAITING = 'รอรับฝาก';
 const RECEIVED = 'รับฝาก';
@@ -91,9 +92,9 @@ async function expectStatus(page, d, url, { status, received }) {
   await expect(async () => {
     await page.goto(url);
     await d.waitForOrder();
-    await expect(d.field('สถานะ')).toHaveText(status, { timeout: 2000 });
-    await expect(d.field('รับฝากแล้ว')).toHaveText(`${received} ชิ้น`, { timeout: 2000 });
-  }).toPass({ timeout: 60000 });
+    await expect(d.field('สถานะ')).toHaveText(status, { timeout: scaled(2000) });
+    await expect(d.field('รับฝากแล้ว')).toHaveText(`${received} ชิ้น`, { timeout: scaled(2000) });
+  }).toPass({ timeout: scaled(60000) });
 }
 
 /** The customer's order detail, opened from การฝากส่งของฉัน; รับฝากแล้ว shows up a moment after the status */
@@ -105,8 +106,8 @@ async function openPortalOrder(portal, order, received) {
   await expect(d.field('สถานะการฝากส่ง')).toHaveText('รับฝากสำเร็จ');
   await expect(async () => {
     await portal.page.reload();
-    await expect(d.field('รับฝากแล้ว')).toHaveText(`${received} ชิ้น`, { timeout: 2000 });
-  }).toPass({ timeout: 30000 });
+    await expect(d.field('รับฝากแล้ว')).toHaveText(`${received} ชิ้น`, { timeout: scaled(2000) });
+  }).toPass({ timeout: scaled(30000) });
 }
 
 /** [barcode, postal code, type, weight] as the summary and scan pages list an item */
@@ -160,7 +161,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
     const orders = {};
 
     test.beforeAll(async ({ browser }, testInfo) => {
-      testInfo.setTimeout(4 * 60 * 1000);
+      testInfo.setTimeout(scaled(4 * 60 * 1000));
       backOffice = await BackOfficeApi.open(browser);
       const ruralAreas = await backOffice.ruralAreas();
       for (const user of CSV_USERS) orders[user.name] = await createCsvOrder(browser, user, { ruralAreas });
@@ -172,7 +173,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
 
     test.describe('TS04-TC04 ตรวจสอบหน้ารายละเอียดใบนำส่ง แบ่งตามสถานะรายการ (รอรับฝาก)', () => {
       test('user ปกติ / user TSD: ข้อมูลผู้ฝากส่ง บริการ และจำนวนชิ้นแยกตามประเภทตรงกับที่ preload ไม่เลือกวิธีนำส่งแล้วแจ้งเตือน', async ({ page, browser, dropOffOrdersPage, dropOffOrderDetailPage: d }) => {
-        test.setTimeout(2 * 60 * 1000);
+        test.setTimeout(scaled(2 * 60 * 1000));
         for (const user of CSV_USERS) await test.step(user.name, async () => {
           const order = orders[user.name];
           const count = String(order.items.length);
@@ -223,7 +224,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
 
     test.describe('TS04-TC05 ตรวจสอบการดาวน์โหลดข้อมูล', () => {
       test('user ปกติ / user TSD: CSV รายละเอียดการจัดส่งทั้งหมด ก่อนรับฝาก ทุกชิ้นรอรับฝาก ข้อมูลตรงกับไฟล์ที่อัปโหลด', async ({ page, dropOffOrdersPage, dropOffOrderDetailPage: d }) => {
-        test.setTimeout(2 * 60 * 1000);
+        test.setTimeout(scaled(2 * 60 * 1000));
         for (const user of CSV_USERS) await test.step(user.name, async () => {
           const order = orders[user.name];
           await openOrder(page, order, { dropOffOrdersPage, dropOffOrderDetailPage: d });
@@ -242,7 +243,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
 
     test.describe('TS05-TC01 ตรวจสอบหน้าสรุปรายการรับฝากทั้งหมด', () => {
       test('user ปกติ / user TSD: เลือกนำส่งแบบทั้งหมด แสดงพัสดุครบทุกชิ้นตามที่ preload breadcrumb ถูกต้อง', async ({ page, dropOffOrdersPage, dropOffOrderDetailPage: d }) => {
-        test.setTimeout(2 * 60 * 1000);
+        test.setTimeout(scaled(2 * 60 * 1000));
         for (const user of CSV_USERS) await test.step(user.name, async () => {
           const order = orders[user.name];
           await openOrder(page, order, { dropOffOrdersPage, dropOffOrderDetailPage: d });
@@ -263,7 +264,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
 
     test.describe('TS05-TC03 ตรวจสอบการกรองรายการรับฝาก', () => {
       test('user ปกติ / user TSD: ค้นหาด้วย Barcode หรือรหัสไปรษณีย์ และกรองตามประเภทบริการ', async ({ page, dropOffOrdersPage, dropOffOrderDetailPage: d }) => {
-        test.setTimeout(2 * 60 * 1000);
+        test.setTimeout(scaled(2 * 60 * 1000));
         for (const user of CSV_USERS) await test.step(user.name, async () => {
           const order = orders[user.name];
           const item = order.items.find((i) => i.trackingNumber && !i.country);
@@ -292,7 +293,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
 
     test.describe('TS05-TC04 ตรวจสอบการลบรายการรับฝาก', () => {
       test('user ปกติ / user TSD: ลบทีละรายการและลบหลายรายการ modal แสดงประเภทและจำนวน จำนวนรวมอัปเดต ยกเลิกแล้วไม่ถูกบันทึก', async ({ page, dropOffOrdersPage, dropOffOrderDetailPage: d }) => {
-        test.setTimeout(2 * 60 * 1000);
+        test.setTimeout(scaled(2 * 60 * 1000));
         for (const user of CSV_USERS) await test.step(user.name, async () => {
           const order = orders[user.name];
           const count = order.items.length;
@@ -329,7 +330,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
 
     test.describe('TS05-TC05 ตรวจสอบการแก้ไขน้ำหนักรายการรับฝาก', () => {
       test('user ปกติ / user TSD: modal แก้ไขน้ำหนัก ไม่กรอก / เกินน้ำหนักที่กำหนดแจ้งเตือน พิมพ์ติดลบไม่ได้ บันทึกแล้วน้ำหนักเปลี่ยน', async ({ page, dropOffOrdersPage, dropOffOrderDetailPage: d }) => {
-        test.setTimeout(2 * 60 * 1000);
+        test.setTimeout(scaled(2 * 60 * 1000));
         for (const user of CSV_USERS) await test.step(user.name, async () => {
           const order = orders[user.name];
           const item = order.items.find((i) => i.type === 'EMS' && i.trackingNumber && !i.country);
@@ -366,7 +367,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
 
     test.describe('TS05-TC06 ตรวจสอบการส่งรายการเข้าสู่ระบบ', () => {
       test('user ปกติ / user TSD: รับฝากทั้งใบ สถานะเป็นรับฝากสำเร็จทั้ง drop off และการฝากส่งของฉัน', async ({ page, browser, dropOffOrdersPage, dropOffOrderDetailPage: d }) => {
-        test.setTimeout(2 * 60 * 1000);
+        test.setTimeout(scaled(2 * 60 * 1000));
         for (const user of CSV_USERS) await test.step(user.name, async () => {
           const order = orders[user.name];
           const url = await openOrder(page, order, { dropOffOrdersPage, dropOffOrderDetailPage: d });
@@ -483,7 +484,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
     const orders = {};
 
     test.beforeAll(async ({ browser }, testInfo) => {
-      testInfo.setTimeout(4 * 60 * 1000);
+      testInfo.setTimeout(scaled(4 * 60 * 1000));
       backOffice = await BackOfficeApi.open(browser);
       for (const user of CSV_USERS) {
         const order = await createCsvOrder(browser, user);
@@ -499,7 +500,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
 
     test.describe('TS06-TC01 ตรวจสอบหน้าสรุปรายการรับฝากสแกนทีละชิ้น', () => {
       test('user ปกติ / user TSD: เลือกสแกนทีละชิ้น ยังไม่มีรายการ ปุ่มรับฝากกดไม่ได้ breadcrumb ถูกต้อง', async ({ page, dropOffOrdersPage, dropOffOrderDetailPage: d }) => {
-        test.setTimeout(2 * 60 * 1000);
+        test.setTimeout(scaled(2 * 60 * 1000));
         for (const user of CSV_USERS) await test.step(user.name, async () => {
           const order = orders[user.name];
           await openOrder(page, order, { dropOffOrdersPage, dropOffOrderDetailPage: d });
@@ -518,7 +519,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
 
     test.describe('TS06-TC03 ตรวจสอบการสแกนทีละชิ้นไม่สำเร็จ', () => {
       test('user ปกติ / user TSD: หมายเลขที่ไม่อยู่ในใบนำส่งแจ้งไม่พบข้อมูล สแกนซ้ำแจ้งเคยถูกสแกนไปแล้ว', async ({ page, dropOffOrdersPage, dropOffOrderDetailPage: d }) => {
-        test.setTimeout(2 * 60 * 1000);
+        test.setTimeout(scaled(2 * 60 * 1000));
         for (const user of CSV_USERS) await test.step(user.name, async () => {
           const order = orders[user.name];
           const otherOrder = orders[CSV_USERS.find((u) => u !== user).name];
@@ -540,7 +541,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
 
     test.describe('TS06-TC04 ตรวจสอบการสแกนทีละชิ้นสำเร็จ', () => {
       test('user ปกติ / user TSD: สแกนทีละชิ้น รายการเพิ่มในตารางพร้อมข้อมูลตามที่ preload จำนวนรวมอัปเดต', async ({ page, dropOffOrdersPage, dropOffOrderDetailPage: d }) => {
-        test.setTimeout(2 * 60 * 1000);
+        test.setTimeout(scaled(2 * 60 * 1000));
         for (const user of CSV_USERS) await test.step(user.name, async () => {
           const order = orders[user.name];
           const scanned = order.received.slice(0, 3);
@@ -556,7 +557,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
 
     test.describe('TS06-TC05 ตรวจสอบการลบรายการรับฝาก', () => {
       test('user ปกติ / user TSD: ลบทีละรายการและลบหลายประเภท modal แสดงประเภทและจำนวน จำนวนรวมอัปเดต', async ({ page, dropOffOrdersPage, dropOffOrderDetailPage: d }) => {
-        test.setTimeout(2 * 60 * 1000);
+        test.setTimeout(scaled(2 * 60 * 1000));
         for (const user of CSV_USERS) await test.step(user.name, async () => {
           const order = orders[user.name];
           const pickType = (type) => order.received.find((i) => i.type === type && !i.country);
@@ -587,7 +588,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
 
     test.describe('TS06-TC06 ตรวจสอบการแก้ไขน้ำหนักรายการรับฝาก', () => {
       test('user ปกติ / user TSD: แก้ไขน้ำหนักรายการที่สแกน ไม่กรอกแจ้งเตือน บันทึกแล้วน้ำหนักเปลี่ยน', async ({ page, dropOffOrdersPage, dropOffOrderDetailPage: d }) => {
-        test.setTimeout(2 * 60 * 1000);
+        test.setTimeout(scaled(2 * 60 * 1000));
         for (const user of CSV_USERS) await test.step(user.name, async () => {
           const order = orders[user.name];
           const [item] = order.received;
@@ -610,7 +611,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
 
     test.describe('TS06-TC11 ตรวจสอบการยกเลิกการรับฝากเข้าระบบ', () => {
       test('user ปกติ / user TSD: สแกนแล้วยกเลิก modal ยืนยันการยกเลิก กลับหน้ารายการใบนำส่ง ใบนำส่งยังรอรับฝาก', async ({ page, dropOffOrdersPage, dropOffOrderDetailPage: d }) => {
-        test.setTimeout(2 * 60 * 1000);
+        test.setTimeout(scaled(2 * 60 * 1000));
         for (const user of CSV_USERS) await test.step(user.name, async () => {
           const order = orders[user.name];
           await openOrder(page, order, { dropOffOrdersPage, dropOffOrderDetailPage: d });
@@ -629,7 +630,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
 
     test.describe('TS06-TC07 ตรวจสอบการส่งรายการเข้าสู่ระบบ', () => {
       test('user ปกติ / user TSD: สแกนบางชิ้นแล้วรับฝาก modal แจ้งจำนวนไม่ตรง สถานะเป็นกำลังรับฝาก', async ({ page, dropOffOrdersPage, dropOffOrderDetailPage: d }) => {
-        test.setTimeout(2 * 60 * 1000);
+        test.setTimeout(scaled(2 * 60 * 1000));
         for (const user of CSV_USERS) await test.step(user.name, async () => {
           const order = orders[user.name];
           const url = await openOrder(page, order, { dropOffOrdersPage, dropOffOrderDetailPage: d });
@@ -650,7 +651,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
 
     test.describe('TS06-TC08 ดูประวัติการรับฝากรายการใบนำส่ง', () => {
       test('user ปกติ / user TSD: ใบที่กำลังรับฝาก มีปุ่มสิ้นสุดการรับฝาก สแกนชิ้นที่รับฝากแล้วซ้ำไม่ได้', async ({ page, dropOffOrdersPage, dropOffOrderDetailPage: d }) => {
-        test.setTimeout(2 * 60 * 1000);
+        test.setTimeout(scaled(2 * 60 * 1000));
         for (const user of CSV_USERS) await test.step(user.name, async () => {
           const order = orders[user.name];
           await openOrder(page, order, { dropOffOrdersPage, dropOffOrderDetailPage: d });
@@ -667,7 +668,7 @@ test.describe('Drop Off: ใบนำส่งที่สร้างจาก�
 
     test.describe('TS06-TC09 ตรวจสอบการปิดคำสั่งฝากส่งให้กับ order ที่ส่งไม่ครบ', () => {
       test('user ปกติ / user TSD: สิ้นสุดการรับฝาก ไม่เลือกสาเหตุแจ้งเตือน สถานะรับฝากสำเร็จทั้ง drop off และการฝากส่งของฉัน', async ({ page, browser, dropOffOrdersPage, dropOffOrderDetailPage: d }) => {
-        test.setTimeout(2 * 60 * 1000);
+        test.setTimeout(scaled(2 * 60 * 1000));
         for (const user of CSV_USERS) await test.step(user.name, async () => {
           const order = orders[user.name];
           const url = await openOrder(page, order, { dropOffOrdersPage, dropOffOrderDetailPage: d });

@@ -1,5 +1,6 @@
 const { expect } = require('@playwright/test');
 const { BasePage } = require('./BasePage');
+const { scaled } = require('../config/environments');
 
 /** รายงานข้อมูล — /th/dashboard: tabs ภาพรวม, จำนวนชิ้นงาน, อัตราการนำจ่าย (not TSD) and ค่าบริการ (TSD only) */
 class DashboardPage extends BasePage {
@@ -85,7 +86,7 @@ class DashboardPage extends BasePage {
     await expect(options.first()).toBeVisible();
     for (let count = 0; count !== await options.count();) {
       count = await options.count();
-      const more = this.page.waitForResponse((r) => /v1\/frontend\/orders\?/.test(r.url()), { timeout: 3000 }).catch(() => null);
+      const more = this.page.waitForResponse((r) => /v1\/frontend\/orders\?/.test(r.url()), { timeout: scaled(3000) }).catch(() => null);
       await this.page.getByRole('listbox').evaluate((el) => { el.scrollTop = el.scrollHeight; });
       if (await more) await this.page.waitForLoadState('networkidle');
     }

@@ -1,5 +1,5 @@
 const { test, expect } = require('../../../fixtures');
-const { env } = require('../../../config/environments');
+const { env, scaled } = require('../../../config/environments');
 const { USER_STATE } = require('../../../config/auth');
 const { CreateFutureItemPage } = require('../../../pages/CreateFutureItemPage');
 const { FutureItemsPage } = require('../../../pages/FutureItemsPage');
@@ -413,7 +413,7 @@ test.describe('Create order from future items (DLT)', () => {
 
       // CPM-1842: confirmed at once, both requests once hung for a minute (504) and left order creation locked (429)
       const responses = pages.map((createPage) => createPage.page.waitForResponse(
-        (r) => /future-items\/consignments/.test(r.url()) && r.request().method() === 'POST', { timeout: 15000 },
+        (r) => /future-items\/consignments/.test(r.url()) && r.request().method() === 'POST', { timeout: scaled(15000) },
       ));
       await Promise.all(confirms.map((confirm) => confirm.click()));
       const statuses = (await Promise.all(responses)).map((r) => r.status());

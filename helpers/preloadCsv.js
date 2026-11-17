@@ -7,6 +7,7 @@ const { openPortal } = require('./portal');
 const { uniqueBatchRef } = require('./futureItemsApi');
 const { readDownload, parseCsv } = require('./orderData');
 const { randomThaiName, randomThaiPhone, randomEmail, randomThaiAddress, randomThaiPostalCode, ruralPicks } = require('./testData');
+const { scaled } = require('../config/environments');
 // One country per registered-mail zone (1-22) that also has an EMS zone, from Back Office > จัดการโซน (dev, Nov 2026);
 // international fees are per zone, so more countries of the same zone would test nothing new. Each must have both
 // zones on UAT too, whose zones differ (no BAHRAIN, no EMS zone for ALGERIA)
@@ -152,8 +153,8 @@ async function createCsvOrder(browser, user, { ruralAreas, inThailand, only = ()
   // The order is กำลังสร้าง for a few seconds after the upload
   await expect(async () => {
     await portal.page.reload();
-    await expect(portal.orderDetailPage.field('สถานะการฝากส่ง')).toHaveText(user.createdStatus, { timeout: 2000 });
-  }).toPass({ timeout: 60000 });
+    await expect(portal.orderDetailPage.field('สถานะการฝากส่ง')).toHaveText(user.createdStatus, { timeout: scaled(2000) });
+  }).toPass({ timeout: scaled(60000) });
   const id = portal.page.url().match(/orders\/(\d+)/)[1];
   const d = portal.orderDetailPage;
   const created = parseCsv(await readDownload(await d.download(d.csvButton)));

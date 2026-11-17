@@ -1,5 +1,5 @@
 const { test, expect } = require('../../fixtures');
-const { env } = require('../../config/environments');
+const { env, scaled } = require('../../config/environments');
 const { USER_STATE, NORMAL_STATE, TSD_STATE } = require('../../config/auth');
 const { openPortal } = require('../../helpers/portal');
 const { BackOfficeApi } = require('../../helpers/backOfficeApi');
@@ -176,7 +176,7 @@ async function checkMissingReasons(browser, { state, data, expected }, tab) {
 
 // One look at the data per user (in one worker): the expected values take a while to work out from Back Office
 test.describe('รายงานข้อมูล user ปกติ', () => {
-  test.describe.configure({ mode: 'default', timeout: 3 * 60 * 1000 });
+  test.describe.configure({ mode: 'default', timeout: scaled(3 * 60 * 1000) });
   let dashboard;
   test.beforeAll(async ({ browser }) => { dashboard = await loadDashboard(browser, NORMAL_STATE); });
   test.beforeEach(() => skipWithoutData(dashboard, 'user ปกติ'));
@@ -206,7 +206,7 @@ test.describe('รายงานข้อมูล user ปกติ', () => {
 
 // TSD has ค่าบริการ instead of อัตราการนำจ่าย; its ภาพรวม shows the missing-item ranking
 test.describe('รายงานข้อมูล user TSD', () => {
-  test.describe.configure({ mode: 'default', timeout: 3 * 60 * 1000 });
+  test.describe.configure({ mode: 'default', timeout: scaled(3 * 60 * 1000) });
   let dashboard;
   test.beforeAll(async ({ browser }) => { dashboard = await loadDashboard(browser, TSD_STATE); });
   test.beforeEach(() => skipWithoutData(dashboard, 'user TSD'));
@@ -232,7 +232,7 @@ test.describe('รายงานข้อมูล user TSD', () => {
 });
 
 test.describe('รายงานข้อมูล user DLT', () => {
-  test.describe.configure({ mode: 'default', timeout: 3 * 60 * 1000 });
+  test.describe.configure({ mode: 'default', timeout: scaled(3 * 60 * 1000) });
   let dashboard;
   test.beforeAll(async ({ browser }) => { dashboard = await loadDashboard(browser, USER_STATE); });
   test.beforeEach(() => skipWithoutData(dashboard, 'user DLT'));
@@ -255,7 +255,7 @@ test.describe('รายงานข้อมูล user DLT', () => {
 // The filters work the same for every user, so they are checked as the normal user only
 test.describe('รายงานข้อมูล ตัวกรองและการค้นหา (user ปกติ)', () => {
   // In one worker, so the expected values are worked out once
-  test.describe.configure({ mode: 'default', timeout: 3 * 60 * 1000 });
+  test.describe.configure({ mode: 'default', timeout: scaled(3 * 60 * 1000) });
 
   const { days } = lastSevenDays();
   let orders;
@@ -377,8 +377,10 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
       const { dashboardPage: d, page, close } = await openPortal(browser, NORMAL_STATE);
       await d.goto();
       await d.openTab('จำนวนชิ้นงาน');
-      // Part of one order's reference, without its first and last characters
-      const keyword = orders[0].reference.slice(1, -1);
+      // Part of one order's reference, without its first and last characters (manual data may have none)
+      const withReference = orders.find((o) => o.reference?.length > 2);
+      test.skip(!withReference, 'no order with a reference was received in the range');
+      const keyword = withReference.reference.slice(1, -1);
       await d.search(keyword);
       await expectItemTotal(d, orders.filter((o) => o.reference.includes(keyword)).reduce((sum, o) => sum + o.received, 0), keyword);
       for (const row of await d.itemRows()) expect(row.reference).toContain(keyword);
@@ -438,8 +440,9 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
       }
       await d.clear('หมายเลขใบนำส่ง');
 
-      // Part of one order's reference, without its first and last characters
-      const keyword = first.reference.slice(1, -1);
+      // Part of one order's reference, without its first and last characters (manual data may have none)
+      const keyword = orders.find((o) => o.reference?.length > 2)?.reference.slice(1, -1);
+      test.skip(!keyword, 'no order with a reference was received in the range');
       expect(await d.countAfter(() => d.search(keyword), { search: keyword })).toBe(orders.filter((o) => o.reference.includes(keyword)).reduce((sum, o) => sum + o.received, 0));
       expect(await d.countAfter(() => d.search('NO_SUCH_REFERENCE'), { search: 'NO_SUCH_REFERENCE' })).toBe(0);
       await expectRate(d, { min: 0, max: 0 });
@@ -458,7 +461,7 @@ test.describe('รายงานข้อมูล ตัวกรองแล�
 
 // TSD searches จำนวนชิ้นงาน by a field it picks (ประเภทการค้นหา) instead of by reference only
 test.describe('รายงานข้อมูล การค้นหา (user TSD)', () => {
-  test.describe.configure({ mode: 'default', timeout: 3 * 60 * 1000 });
+  test.describe.configure({ mode: 'default', timeout: scaled(3 * 60 * 1000) });
 
   const { days } = lastSevenDays();
   let orders;
@@ -476,9 +479,12 @@ test.describe('รายงานข้อมูล การค้นหา (us
 
   test.describe('TS11-TC03 user TSD ตรวจสอบการค้นหาด้วยข้อมูลต่างๆ', () => {
     test('user TSD: ค้นหาด้วยทุกประเภทการค้นหา และค้นหาไม่พบ', async ({ browser }) => {
-      test.skip(!orders.length, `nothing received at drop off on ${days[0]} - ${days[days.length - 1]}`);
-      const order = orders[0];
-      const item = order.items[0];
+      // An item with every searched field filled in: manual data may have no email or reference, and an empty search
+      // sends no request
+      const order = orders.find((o) => o.reference?.length > 2
+        && o.items.some((i) => i.trackingNumber && i.name && i.email && i.phone));
+      test.skip(!order, `no order with a full item received at drop off on ${days[0]} - ${days[days.length - 1]}`);
+      const item = order.items.find((i) => i.trackingNumber && i.name && i.email && i.phone);
       const reference = order.reference.slice(1, -1);
       const sumOf = (match) => orders.filter(match).reduce((sum, o) => sum + o.received, 0);
       const searches = [
@@ -511,7 +517,7 @@ test.describe('รายงานข้อมูล การค้นหา (us
 
 // ค่าบริการ (TSD only) adds up the final amounts of the confirmed settlement summaries by the month they were confirmed
 test.describe('รายงานข้อมูล ค่าบริการ (user TSD)', () => {
-  test.describe.configure({ mode: 'default', timeout: 3 * 60 * 1000 });
+  test.describe.configure({ mode: 'default', timeout: scaled(3 * 60 * 1000) });
 
   let fees;
   const baht = (amount) => Math.round(amount * 100) / 100;
