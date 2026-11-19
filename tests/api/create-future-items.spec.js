@@ -1,6 +1,6 @@
 const { randomInt } = require('crypto');
 const { test, expect } = require('../../fixtures');
-const { env, ENV_NAME } = require('../../config/environments');
+const { env, ENV_NAME, scaled } = require('../../config/environments');
 const { generateHmacSignature, nowUnix } = require('../../helpers/hmac');
 const { FutureItemsApi, uniqueRefCodes, uniqueBatchRef, buildItem, buildPayload, omit } = require('../../helpers/futureItemsApi');
 const { expectSuccess, expectInvalidSignature, expectInvalidBody } = require('../../helpers/apiAssertions');
@@ -132,9 +132,10 @@ test.describe('Create Future Items API', () => {
     });
 
     test('valid signature of a non-DLT credential → 403 and nothing is created', async ({ futureItemsApi }) => {
-      test.skip(!env.nonDlt.huid || !env.nonDlt.secretKey, 'Set *_NON_DLT_HUID / *_NON_DLT_SECRET_KEY in .env');
+      const { huid, secretKey } = env.normalUser;
+      test.skip(!huid || !secretKey, 'Set *_NORMAL_USER_HUID / *_NORMAL_USER_SECRET_KEY in .env');
       const refCodes = uniqueRefCodes(1);
-      const headers = futureItemsApi.signedHeaders({ credentials: env.nonDlt });
+      const headers = futureItemsApi.signedHeaders({ credentials: { huid, secretKey } });
 
       const response = await futureItemsApi.create(buildPayload({ refCodes }), { headers });
 
@@ -377,7 +378,7 @@ test.describe('Create Future Items API', () => {
     }
 
     test('over the limit → 429, OK again after Retry-After', async ({ futureItemsApi }) => {
-      test.setTimeout(2 * 60 * 1000);
+      test.setTimeout(scaled(2 * 60 * 1000));
       let limited;
 
       await test.step('1. send requests until the limit → each one before the limit is 201', async () => {

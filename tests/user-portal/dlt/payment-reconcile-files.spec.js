@@ -1,5 +1,5 @@
 const { test } = require('../../../fixtures');
-const { env } = require('../../../config/environments');
+const { env, scaled } = require('../../../config/environments');
 const { FutureItemsApi, createBatch, uniqueNumericRefCodes } = require('../../../helpers/futureItemsApi');
 const { EodBucket } = require('../../../helpers/eodBucket');
 const { thaiDate } = require('../../../helpers/thaiDate');
@@ -9,7 +9,7 @@ const UNPAID = 'ยังไม่ชำระเงิน';
 
 // Each test uploads an EOD file of its own and needs a job round (5 minutes) to itself, since the job only reads the
 // latest file: one at a time, and never while tests/eod.setup.js runs
-test.describe.configure({ mode: 'default', timeout: 10 * 60 * 1000 });
+test.describe.configure({ mode: 'default', timeout: scaled(10 * 60 * 1000) });
 
 async function uploadEodFile(companyCode, payments) {
   return new EodBucket(env.eod).upload({ companyCode, companyAccount: env.eod.companyAccount, payments });

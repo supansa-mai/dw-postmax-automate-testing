@@ -2,12 +2,14 @@ const { test, expect } = require('../../../fixtures');
 const { readEodItems } = require('../../../helpers/eodItems');
 const { readDownload, parseCsv, countBy, grams } = require('../../../helpers/orderData');
 const { thaiDate } = require('../../../helpers/thaiDate');
+const { BackOfficeApi } = require('../../../helpers/backOfficeApi');
+const { expectedSummary, bySummaryKey, baht } = require('../../../helpers/pricing');
 
 const TODAY = thaiDate();
 
-// รายงานการฝากส่ง groups Bangkok and its vicinity (postal codes 10xxx-12xxx) as กรุงเทพมหานคร, seen on dev
+// รายงานการฝากส่ง groups Bangkok and its vicinity (postal codes 10xxx-12xxx, นครปฐม 73xxx and สมุทรสาคร 74xxx) as กรุงเทพมหานคร, seen on dev
 const AREAS = ['กรุงเทพมหานคร', 'ต่างจังหวัด'];
-const areaOf = (postalCode) => (/^1[0-2]/.test(postalCode) ? 'กรุงเทพมหานคร' : 'ต่างจังหวัด');
+const areaOf = (postalCode) => (/^(1[0-2]|7[34])/.test(postalCode) ? 'กรุงเทพมหานคร' : 'ต่างจังหวัด');
 
 test.describe('Orders created from future items (DLT)', () => {
   let order;
@@ -61,6 +63,32 @@ test.describe('Orders created from future items (DLT)', () => {
       const price = rows.reduce((sum, row) => sum + Number(row[6]), 0).toFixed(2);
       expect(total.slice(-3)).toEqual(['รวมทั้งหมด', count, price]);
       await expect(d.field('ราคารวมทั้งหมด')).toHaveText(`${price} บาท`);
+    });
+  });
+
+  test.describe('TS09-TC05 ตรวจสอบราคาต่อชิ้นของใบนำส่งจากรายการล่วงหน้า ตามค่าบริการใน Back Office', () => {
+    test('ราคาแต่ละรายการ = ค่าส่ง EMS + Plus DLT ไม่คิดค่าพื้นที่พิเศษ', async ({ page, browser, ordersPage, orderDetailPage: d }) => {
+      await ordersPage.goto();
+      await ordersPage.openDetail(order.number);
+      await expect(d.serviceTable.getByRole('row').last()).toContainText('รวมทั้งหมด');
+      const id = page.url().match(/orders\/(\d+)/)[1];
+
+      const backOffice = await BackOfficeApi.open(browser);
+      const fees = await backOffice.fees();
+      const items = order.items.map((item) => ({
+        type: 'EMS', service: 'PLUS_DLT', eAr: 'NON', weight: item.weight, postalCode: item.receiverPostalCode, address: item.receiverAddress,
+      }));
+      // eod.setup sends two of the order's items to rural areas, one to a rural postal code outside its area, the rest elsewhere
+      const inRuralAreas = (await expectedSummary(fees, items)).filter((row) => row.zone === -1);
+      expect(inRuralAreas.reduce((sum, row) => sum + row.total, 0), 'items in rural areas').toBe(2);
+      // Future items have no rural area fee, even in a rural area (requirement, Nov 2026)
+      const expected = await expectedSummary({ ...fees, rural: { ...fees.rural, areas: [] } }, items);
+      const { preloadedSummary } = await backOffice.order(id);
+      await backOffice.close();
+      expect(bySummaryKey(preloadedSummary)).toEqual(bySummaryKey(expected));
+
+      const total = expected.reduce((sum, row) => sum + Number(row.totalPrice), 0);
+      await expect(d.field('ราคารวมทั้งหมด')).toHaveText(baht(total));
     });
   });
 

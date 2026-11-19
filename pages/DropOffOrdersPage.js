@@ -1,5 +1,6 @@
 const { expect } = require('@playwright/test');
 const { BasePage } = require('./BasePage');
+const { scaled } = require('../config/environments');
 
 /** Drop Off รายการใบนำส่ง — /th/dropoff/orders, orders of the companies tied to the staff's branch */
 class DropOffOrdersPage extends BasePage {
@@ -15,7 +16,7 @@ class DropOffOrdersPage extends BasePage {
 
   async goto() {
     await super.goto('dropoff/orders');
-    await expect(this.rows.first()).toBeVisible({ timeout: 30000 });
+    await expect(this.rows.first()).toBeVisible({ timeout: scaled(30000) });
   }
 
   async search(orderNumber) {

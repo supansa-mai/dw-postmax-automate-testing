@@ -1,5 +1,6 @@
 const { expect } = require('@playwright/test');
 const { BasePage } = require('./BasePage');
+const { scaled } = require('../config/environments');
 
 /** รายการพัสดุล่วงหน้า (DLT) — /th/future-items */
 class FutureItemsPage extends BasePage {
@@ -168,13 +169,13 @@ class FutureItemsPage extends BasePage {
       try {
         await this.openBatch(batchRef, date);
         await this.scrollGrid('end');
-        return await Promise.all(items.map((item) => this.cell(item.id, 'paymentStatus').innerText({ timeout: 15000 })));
+        return await Promise.all(items.map((item) => this.cell(item.id, 'paymentStatus').innerText({ timeout: scaled(15000) })));
       } catch (error) {
         return error.message.split('\n')[0];
       }
     }, {
       message: `reconcile job did not process ${fileName}; was another EOD file uploaded after it?`,
-      timeout: 8 * 60 * 1000,
+      timeout: scaled(8 * 60 * 1000),
       intervals: [15000],
     }).toEqual(items.map(() => 'ชำระเงินแล้ว'));
   }

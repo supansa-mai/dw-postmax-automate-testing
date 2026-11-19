@@ -76,6 +76,22 @@ function randomWeight() {
 }
 
 // ---------------------------------------------------------------------------
+// Rural areas — Back Office > จัดการพื้นที่พิเศษ: a whole postal code, or with an area name only the addresses in it
+// ---------------------------------------------------------------------------
+/**
+ * Picks from Back Office's rural areas: `wholeCode()` a postal code rural as a whole, and `named` ({ postalCode, area })
+ * one rural only where the address has the area's name, so the same postal code without the name is not rural
+ */
+function ruralPicks(ruralAreas) {
+  const wholeCodes = ruralAreas.filter((a) => !a.area);
+  const named = ruralAreas.filter((a) => a.area && !wholeCodes.some((w) => w.postalCode === a.postalCode));
+  return {
+    wholeCode: () => wholeCodes[randomInt(0, wholeCodes.length)].postalCode,
+    named: named[randomInt(0, named.length)],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
 module.exports = {
@@ -85,4 +101,5 @@ module.exports = {
   randomThaiAddress,
   randomThaiPostalCode,
   randomWeight,
+  ruralPicks,
 };

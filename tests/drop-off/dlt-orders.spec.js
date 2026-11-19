@@ -1,35 +1,15 @@
 const { test, expect } = require('../../fixtures');
-const { env } = require('../../config/environments');
-const { USER_STATE, DROPOFF_STATE } = require('../../config/auth');
-const { OrdersPage } = require('../../pages/OrdersPage');
-const { OrderDetailPage } = require('../../pages/OrderDetailPage');
-const { OrderItemsPage } = require('../../pages/OrderItemsPage');
-const { ProfilePage } = require('../../pages/ProfilePage');
+const { DROPOFF_STATE } = require('../../config/auth');
+const { openPortal } = require('../../helpers/portal');
+const { scaled } = require('../../config/environments');
 const { readEodItems } = require('../../helpers/eodItems');
+const { BackOfficeApi } = require('../../helpers/backOfficeApi');
 const { readDownload, parseCsv, countBy, grams } = require('../../helpers/orderData');
 const { thaiDate } = require('../../helpers/thaiDate');
 
 const TODAY = thaiDate();
 const FROM_FUTURE_ITEMS = 'จากรายการล่วงหน้า';
 const CREATED_TODAY = new RegExp(`^${TODAY} - \\d{2}:\\d{2}$`);
-
-/** The DLT user's User Portal next to the Drop Off page, to see what the customer sees; VIDEO=1 records it too */
-async function openPortal(browser) {
-  const video = process.env.VIDEO ? { recordVideo: { dir: test.info().outputPath('portal') } } : {};
-  const context = await browser.newContext({ storageState: USER_STATE, baseURL: `${env.baseURL}/`, timezoneId: 'Asia/Bangkok', ...video });
-  const page = await context.newPage();
-  return {
-    context,
-    async close() {
-      await context.close();
-      if (page.video()) await test.info().attach('portal video', { path: await page.video().path(), contentType: 'video/webm' });
-    },
-    ordersPage: new OrdersPage(page),
-    orderDetailPage: new OrderDetailPage(page),
-    orderItemsPage: new OrderItemsPage(page),
-    profilePage: new ProfilePage(page),
-  };
-}
 
 test.describe('Drop Off: orders created from future items (DLT)', () => {
   test.use({ storageState: DROPOFF_STATE });
@@ -167,7 +147,7 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
           await p.scrollGrid('end');
           await expect(p.cell(receiveOrder.number, 'totalDroppedOffOrderItems')).toHaveText(count);
           await expect(p.cell(receiveOrder.number, 'status')).toHaveText('รับฝากสำเร็จ');
-        }).toPass({ timeout: 60000 });
+        }).toPass({ timeout: scaled(60000) });
 
         const portal = await openPortal(browser);
         const row = portal.ordersPage.row(receiveOrder.number);
@@ -175,7 +155,7 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
           await portal.ordersPage.goto();
           await expect(portal.ordersPage.cell(row, 'received')).toHaveText(count);
           await expect(portal.ordersPage.cell(row, 'status')).toHaveText('รับฝากสำเร็จ');
-        }).toPass({ timeout: 60000 });
+        }).toPass({ timeout: scaled(60000) });
         await portal.ordersPage.openDetail(receiveOrder.number);
         await expect(portal.orderDetailPage.field('สถานะการฝากส่ง')).toHaveText('รับฝากสำเร็จ');
         await expect(portal.orderDetailPage.field('วันที่/เวลาที่ปณ.ได้รับ')).toHaveText(CREATED_TODAY);
@@ -222,6 +202,36 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
         }
         await context.close();
       });
+
+      test('อัปเดตสถานะกำลังจัดส่ง / ส่งสำเร็จ / ส่งไม่สำเร็จ แสดงในรายละเอียดใบนำส่งและรายพัสดุ', async ({ browser }) => {
+        const [inTransit, delivered, failed] = receiveOrder.items;
+        const backOffice = await BackOfficeApi.open(browser);
+        const { id } = await backOffice.findOrder(receiveOrder.number);
+        // Received (103) is saved a moment after drop off and would overwrite an update sent before it
+        await expect.poll(async () => (await backOffice.orderItems(id)).every((item) => item.status === '103'),
+          { message: `items of ${receiveOrder.number} received`, timeout: scaled(60000), intervals: [2000] }).toBe(true);
+        await backOffice.updateItemStatus(inTransit.trackingNumber, 'inTransit', { orderId: id });
+        await backOffice.updateItemStatus(delivered.trackingNumber, 'delivered', { orderId: id });
+        await backOffice.updateItemStatus(failed.trackingNumber, 'failed', { reason: 'บ้านปิด', orderId: id });
+        await backOffice.close();
+
+        const { context, page, orderDetailPage: d, orderItemsPage } = await openPortal(browser);
+        await expect(async () => {
+          await page.goto(`orders/${id}`);
+          await expect(d.field('สถานะการฝากส่ง')).toHaveText('ส่งสำเร็จ', { timeout: scaled(5000) });
+          expect(await d.tableRows(d.deliveryTable))
+            .toEqual([['รับฝากสำเร็จ', '0'], ['กำลังจัดส่ง', '1'], ['ส่งสำเร็จ', '1'], ['ส่งไม่สำเร็จ', '1']]);
+        }).toPass({ timeout: scaled(60000) });
+
+        await d.itemsButton.click();
+        const rows = await orderItemsPage.rowValues();
+        expect(Object.fromEntries(rows.map((row) => [row.trackingNumber, row.status]))).toEqual({
+          [inTransit.trackingNumber]: 'ออกจากที่ทำการ/ศูนย์ไปรษณีย์',
+          [delivered.trackingNumber]: 'นำจ่ายสำเร็จ',
+          [failed.trackingNumber]: 'นำจ่ายไม่สำเร็จ',
+        });
+        await context.close();
+      });
     });
   });
 
@@ -253,7 +263,7 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
         await d.waitForOrder();
         await expect(d.field('สถานะ')).toHaveText('กำลังรับฝาก');
         await expect(d.field('รับฝากแล้ว')).toHaveText(`${received.length} ชิ้น`);
-      }).toPass({ timeout: 60000 });
+      }).toPass({ timeout: scaled(60000) });
 
       await d.finishButton.click();
       await d.finishDialog.getByRole('button', { name: 'ยืนยัน' }).click();
@@ -266,7 +276,7 @@ test.describe('Drop Off: orders created from future items (DLT)', () => {
         await page.goto(detailUrl);
         await d.waitForOrder();
         await expect(d.field('สถานะ')).toHaveText('รับฝากสำเร็จ');
-      }).toPass({ timeout: 60000 });
+      }).toPass({ timeout: scaled(60000) });
       await expect(d.field('รับฝากแล้ว')).toHaveText(`${received.length} ชิ้น`);
       await expect(d.field('สาเหตุที่รับฝากไม่ครบ')).toHaveText(reason);
       await expect(d.field('รายละเอียดเพิ่มเติม')).toHaveText(detail);

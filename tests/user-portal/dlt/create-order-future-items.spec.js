@@ -1,5 +1,5 @@
 const { test, expect } = require('../../../fixtures');
-const { env } = require('../../../config/environments');
+const { env, scaled } = require('../../../config/environments');
 const { USER_STATE } = require('../../../config/auth');
 const { CreateFutureItemPage } = require('../../../pages/CreateFutureItemPage');
 const { FutureItemsPage } = require('../../../pages/FutureItemsPage');
@@ -190,7 +190,11 @@ test.describe('Create order from future items (DLT)', () => {
       await p.scanItems([item]);
 
       await p.scan(item.trackingNumber);
-      await expect(p.toast).toContainText('รายการนี้อยู่ในตารางแล้ว');
+      // A modal instead of the toast since CPM-1831
+      const dialog = p.dialog('สแกนพัสดุซ้ำ');
+      await expect(dialog).toContainText('พัสดุรายการนี้ถูกสแกนแล้ว กรุณาเพิ่มข้อมูลรายการอื่น หรือกดสร้างใบนำส่งเพื่อดำเนินการต่อ');
+      await dialog.getByRole('button', { name: 'ตกลง' }).click();
+      await expect(dialog).toBeHidden();
       await expect(p.total).toHaveText('ทั้งหมด 1 รายการ');
     });
   });
@@ -391,6 +395,38 @@ test.describe('Create order from future items (DLT)', () => {
       await dialog.getByRole('button').last().click();
       await expect(p.row(taken.trackingNumber)).toHaveCount(0);
       await expect(p.total).toHaveText('ทั้งหมด 1 รายการ');
+    });
+  });
+
+  test.describe('TS08-TC06 กดยืนยันสร้างใบนำส่งรายการเดียวกันพร้อมกัน 2 เครื่อง (user เดียวกัน)', () => {
+    test('เครื่องหนึ่งสร้างสำเร็จ อีกเครื่องแสดงสร้างใบนำส่งไม่สำเร็จ ไม่ค้าง', async ({ browser, createFutureItemPage: p }) => {
+      const [item] = groups.orderedTwiceAtOnce.paid;
+      const other = await openAnotherBrowser(browser);
+      await other.createPage.goto();
+      const pages = [p, other.createPage];
+      for (const createPage of pages) {
+        await createPage.scanItems([item]);
+        await createPage.createButton.click();
+      }
+      const confirms = pages.map((createPage) => createPage.dialog('สร้างใบนำส่ง?').getByRole('button', { name: 'ยืนยัน' }));
+      for (const confirm of confirms) await expect(confirm).toBeVisible();
+
+      // CPM-1842: confirmed at once, both requests once hung for a minute (504) and left order creation locked (429)
+      const responses = pages.map((createPage) => createPage.page.waitForResponse(
+        (r) => /future-items\/consignments/.test(r.url()) && r.request().method() === 'POST', { timeout: scaled(15000) },
+      ));
+      await Promise.all(confirms.map((confirm) => confirm.click()));
+      const statuses = (await Promise.all(responses)).map((r) => r.status());
+      expect([...statuses].sort()).toEqual([201, 409]);
+
+      const [winner, loser] = statuses[0] === 201 ? pages : [...pages].reverse();
+      await expect(winner.page).toHaveURL(/\/th\/orders/);
+      const dialog = loser.dialog(ORDER_FAILED);
+      await expect(dialog).toContainText(item.trackingNumber);
+      await expect(dialog).toContainText(item.refCode);
+      await dialog.getByRole('button').last().click();
+      await expect(loser.total).toHaveText('ทั้งหมด 0 รายการ');
+      await other.context.close();
     });
   });
 

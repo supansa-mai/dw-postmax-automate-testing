@@ -5,7 +5,7 @@
  */
 const { defineConfig, devices } = require('@playwright/test');
 
-const { env } = require('./config/environments');
+const { env, ENV_NAME, scaled } = require('./config/environments');
 const { USER_STATE } = require('./config/auth');
 
 // Specs that need future items already paid; they run after tests/eod.setup.js has uploaded the EOD file
@@ -19,13 +19,16 @@ module.exports = defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  // Every env shares one backend and DB connection pool, so keep concurrency low; override with WORKERS=n
-  workers: process.env.CI ? 1 : Number(process.env.WORKERS) || 2,
+  // Every env shares one backend and DB connection pool, so keep concurrency low; override with WORKERS=n. UAT pages
+  // (Drop Off / Back Office order lists) stop loading when two workers hit it at once
+  workers: process.env.CI ? 1 : Number(process.env.WORKERS) || (ENV_NAME === 'uat' ? 1 : 2),
   reporter: [['html', { open: 'never' }], ['list']],
+  timeout: scaled(30 * 1000),
+  expect: { timeout: scaled(5 * 1000) },
   use: {
     // Trailing slash keeps the /th prefix; use relative paths without a leading slash, e.g. goto('log-in')
     baseURL: `${env.baseURL}/`,
-    navigationTimeout: env.timeout,
+    navigationTimeout: scaled(env.timeout),
     // The portal works in Bangkok time ("today" in date pickers), also when CI runs in UTC
     timezoneId: 'Asia/Bangkok',
     trace: 'on-first-retry',
@@ -35,9 +38,9 @@ module.exports = defineConfig({
     launchOptions: { slowMo: Number(process.env.SLOWMO ?? (process.env.VIDEO ? 500 : 0)) },
   },
   projects: [
-    // API tests need no browser, so they run once in their own project.
+    // API tests run once in their own project; setup gives api-preloads.spec.js the Back Office session it checks orders with.
     // Not parallel: dev API's DB pool is only 3 connections and returns 500 under concurrent load.
-    { name: 'api', testMatch: /tests[\\/]api[\\/].*\.spec\.js/, fullyParallel: false },
+    { name: 'api', testMatch: /tests[\\/]api[\\/].*\.spec\.js/, fullyParallel: false, dependencies: ['setup'] },
     // Logs in once; UI projects start already logged in as the DLT user
     { name: 'setup', testMatch: /auth\.setup\.js/ },
     // Uploads one EOD file for every spec in EOD_SPECS and waits for the 5-minute reconcile job
@@ -45,7 +48,7 @@ module.exports = defineConfig({
       name: 'eod-setup',
       testMatch: /eod\.setup\.js/,
       dependencies: ['setup'],
-      timeout: 10 * 60 * 1000,
+      timeout: scaled(10 * 60 * 1000),
       use: { ...devices['Desktop Chrome'], storageState: USER_STATE },
     },
     {
